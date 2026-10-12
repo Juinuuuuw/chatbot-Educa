@@ -380,6 +380,21 @@ def health():
     voice_files={'supertonic':ROOT/'models/supertonic-3/onnx/vocoder.onnx','kokoro':ROOT/'models/kokoro/kokoro-v1.0.onnx','piper':ROOT/'models/pt_BR-faber-medium.onnx'}
     return {'ok':True,'supports_batches':True,'model':config['model'],'chunks':len(chunks),'voice':engine=='edge' or voice_files.get(engine,ROOT/'missing-model').exists(),'voice_requires_internet':engine=='edge','tts_engine':engine,'tts_voice':config.get('tts_voice','F2' if engine=='supertonic' else 'pf_dora'),'transcription':(ROOT/'models/whisper-small/model.bin').exists()}
 
+def attach_audio(out):
+    try:
+        out['audio_base64']=speak(out['text'])
+        out['audio_mime']='audio/ogg'
+    except Exception as error:
+        from aiohttp import ClientError
+        from edge_tts.exceptions import EdgeTTSException
+        if config.get('tts_engine')!='edge' or not isinstance(error,(ClientError,TimeoutError,EdgeTTSException)):
+            raise
+        # Preserva a resposta já pronta; não repete o envio nem troca a voz escolhida.
+        out.pop('audio_base64',None);out.pop('audio_mime',None)
+        out['audio_warning']='O serviço de voz está indisponível. A resposta foi enviada por texto.'
+        out['audio_error']={'type':type(error).__name__,'http_status':getattr(error,'status',None)}
+        out['text']+='\n\nNão consegui gerar o áudio agora, então vou responder por texto.'
+
 @app.post('/message')
 def message(m:Message):
     key=hashlib.sha256((m.chat_id+'|'+m.message_id).encode()).hexdigest()
@@ -398,12 +413,13 @@ def message(m:Message):
                 out={'text':'Não consegui entender o áudio. Pode repetir mais perto do microfone, por favor?','mode':'repetir_audio','sources':[],'handoff':False}
             else: out=answer(q,history,is_audio=has_audio)
             out['transcript']=transcript
+            answer_text=out['text']
             if m.reply_audio or has_audio:
-                out['audio_base64']=speak(out['text']); out['audio_mime']='audio/ogg'
+                attach_audio(out)
             with closing(sqlite3.connect(DB)) as db, db:
                 db.execute('INSERT OR REPLACE INTO responses VALUES (?,?,?)',(key,json.dumps(out,ensure_ascii=False),time.time()))
                 if q:
-                    db.execute('INSERT INTO conversations VALUES (?,?,?,?,?)',(chat_key,key,q,out['text'],time.time()))
+                    db.execute('INSERT INTO conversations VALUES (?,?,?,?,?)',(chat_key,key,q,answer_text,time.time()))
                     db.execute('DELETE FROM conversations WHERE chat=? AND rowid NOT IN (SELECT rowid FROM conversations WHERE chat=? ORDER BY rowid DESC LIMIT 4)',(chat_key,chat_key))
             return out
         except (ValueError,RuntimeError) as e: raise HTTPException(422,str(e))

@@ -66,6 +66,8 @@ Na versão 0.2.1, o painel informa a etapa que falhou e preserva o detalhe receb
 
 O último erro fica no armazenamento local da extensão, com etapa, descrição e horário. Esses dados não são enviados a um serviço de monitoramento. Para testar o fluxo da extensão com navegador e WhatsApp simulados, use Node.js e execute `node tests/test_extension.cjs`.
 
+Na versão 0.3.1, falhas de conexão ou de protocolo do serviço Microsoft durante a síntese não descartam a resposta pronta: a Lia envia uma resposta por texto, com um aviso curto, e continua ativa. A voz Francisca permanece selecionada e é tentada normalmente nas próximas mensagens de áudio. Falhas na transcrição, no modelo ou no envio ao WhatsApp continuam sendo tratadas separadamente; um envio incerto não é repetido automaticamente.
+
 ## Base de conhecimento
 
 `data/` contém uma cópia do edital 019/2026, documentos extraídos, trechos e 20 registros de turmas conferidos na tabela. A base inicial tem 17 documentos (sete páginas do edital e dez notícias), 34 trechos e 20 registros de turmas. As fontes constam de `data/documents.json`.

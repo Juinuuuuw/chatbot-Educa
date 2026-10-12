@@ -158,15 +158,15 @@ async function processTick(job) {
       // Marcar antes do envio evita reenvio automático se a confirmação do WhatsApp se perder.
       await rememberMany(ids);
       await chrome.storage.local.set({pendingBatch:null});
-      await chrome.storage.local.set({lastStatus:audio?'Enviando resposta em áudio…':'Enviando resposta em texto…'});
-      stage=audio?'Enviar resposta em áudio':'Enviar resposta em texto';
+      await chrome.storage.local.set({lastStatus:response.audio_base64?'Enviando resposta em áudio…':'Enviando resposta em texto…'});
+      stage=response.audio_base64?'Enviar resposta em áudio':'Enviar resposta em texto';
       const sent=await page(s.tabId,'send',[s.jid,response,prepared.id,s.self]);
       if(sent?.id) await remember(sent.id);
       else throw new Error('Não foi possível confirmar o resultado do envio.');
       const afterSend=await chrome.storage.local.get(['enabled','run']);
       if(!afterSend.enabled || afterSend.run!==s.run) return;
       if(response.handoff) {await pause('Atendimento humano solicitado. Bot pausado nesta conversa.');return;}
-      await chrome.storage.local.set({lastStatus:`Resposta enviada (${response.mode}).`});
+      await chrome.storage.local.set({lastStatus:response.audio_warning || `Resposta enviada (${response.mode}).`});
   } catch(e) {
     const current=await chrome.storage.local.get(['enabled','run']);
     if(current.enabled && current.run===job.run) {

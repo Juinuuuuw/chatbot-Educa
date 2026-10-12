@@ -182,5 +182,31 @@ class LiaTest(unittest.TestCase):
             self.assertIn('um dos áudios',raised.exception.detail)
             speak.assert_not_called()
 
+    def test_voice_service_rejection_keeps_answer_and_cache(self):
+        from aiohttp import WSServerHandshakeError
+        failure=WSServerHandshakeError(request_info=None,history=(),status=403,message='Invalid response status')
+        with temporary_db() as db_path, patch.dict(server.config,{'tts_engine':'edge'}), patch.object(server,'transcribe',return_value='Os cursos são gratuitos?') as transcribe, patch.object(server,'speak',side_effect=failure) as speak:
+            m=server.Message(chat_id='voice-failure',message_id='voice-403',parts=[{'audio_base64':'audio-falso'}])
+            result=server.message(m)
+            self.assertIn('gratuitos',result['text'])
+            self.assertIn('responder por texto',result['text'])
+            self.assertIn('audio_warning',result)
+            self.assertNotIn('audio_base64',result)
+            self.assertEqual(result['audio_error']['http_status'],403)
+            self.assertEqual(server.message(m),result)
+            speak.assert_called_once();transcribe.assert_called_once()
+            with closing(sqlite3.connect(db_path)) as db:
+                history=db.execute('SELECT answer FROM conversations').fetchone()[0]
+                self.assertIn('gratuitos',history)
+                self.assertNotIn('responder por texto',history)
+
+    def test_voice_timeout_falls_back_but_programming_error_does_not(self):
+        with patch.dict(server.config,{'tts_engine':'edge'}), patch.object(server,'speak',side_effect=TimeoutError):
+            out={'text':'Resposta pronta'}
+            server.attach_audio(out)
+            self.assertIn('audio_warning',out)
+        with patch.dict(server.config,{'tts_engine':'edge'}), patch.object(server,'speak',side_effect=RuntimeError('Falha de conversão')):
+            with self.assertRaises(RuntimeError): server.attach_audio({'text':'Resposta pronta'})
+
 if __name__ == '__main__':
     unittest.main()

@@ -6,7 +6,7 @@ const vm=require('node:vm');
 const {webcrypto}=require('node:crypto');
 const root=path.join(__dirname,'..','extension');
 
-function harness({self=false,fromMe=false,errorAt=null,error=null,httpStatus=200}={}) {
+function harness({self=false,fromMe=false,errorAt=null,error=null,httpStatus=200,voiceUnavailable=false}={}) {
   const state={enabled:true,run:'sessao-teste',tabId:1,jid:self?'self-test@c.us':'friend-test@lid',self,started:0,seen:[],ownTokens:[]};
   const sends=[];const bodies=[];let requests=0;let clock=Date.now();let nextTimer=0;
   let incoming=[{id:{_serialized:'incoming-test',id:'incoming-token',fromMe},body:'Oi',type:'chat',t:clock/1000}];
@@ -22,7 +22,7 @@ function harness({self=false,fromMe=false,errorAt=null,error=null,httpStatus=200
   const browserPage=vm.createContext({WPP:wpp,window:{WPP:wpp},Map,FileReader:class{readAsDataURL(){this.result='data:audio/ogg;base64,YXVkaW8=';this.onload();}}});
   let context;
   const sandbox={AbortController,AbortSignal,crypto:webcrypto,TextEncoder,Date:ClockDate,setTimeout:()=>++nextTimer,clearTimeout:()=>{},console,
-    fetch:async(url,options)=>{requests++;const body=JSON.parse(options.body);bodies.push(body);return {ok:httpStatus===200,status:httpStatus,json:async()=>httpStatus===200?{text:'Sou a Lia',mode:'menu',handoff:false,...(body.reply_audio?{audio_base64:'resposta-falsa',audio_mime:'audio/ogg'}:{})}:{detail:[{loc:['body','text'],msg:'Campo inválido'}]}};},
+    fetch:async(url,options)=>{requests++;const body=JSON.parse(options.body);bodies.push(body);return {ok:httpStatus===200,status:httpStatus,json:async()=>httpStatus===200?{text:'Sou a Lia',mode:'menu',handoff:false,...(body.reply_audio?(voiceUnavailable?{audio_warning:'O serviço de voz está indisponível. A resposta foi enviada por texto.'}:{audio_base64:'resposta-falsa',audio_mime:'audio/ogg'}):{})}:{detail:[{loc:['body','text'],msg:'Campo inválido'}]}};},
     chrome:{
       storage:{local:{get:async keys=>keys===null?{...state}:Object.fromEntries((Array.isArray(keys)?keys:[keys]).map(key=>[key,state[key]])),set:async values=>Object.assign(state,values)}},
       tabs:{get:async()=>({url:'https://web.whatsapp.com/'}),query:async()=>[{id:1,url:'https://web.whatsapp.com/'}]},
@@ -117,6 +117,15 @@ function harness({self=false,fromMe=false,errorAt=null,error=null,httpStatus=200
   assert.ok(voices.bodies[0].parts.every(p=>p.audio_base64));
   assert.equal(voices.sends.length,1);
   assert.equal(voices.sends[0].options.type,'audio');
+
+  const fallback=harness({voiceUnavailable:true});
+  fallback.setMessages([{id:{_serialized:'voice-fallback'},type:'ptt',t:1}]);
+  await fallback.flush();
+  assert.equal(fallback.state.enabled,true,'Falha de voz não deve pausar atendimento');
+  assert.equal(fallback.sends.length,1);
+  assert.equal(fallback.sends[0].text,'Sou a Lia');
+  assert.ok(fallback.state.lastStatus.includes('enviada por texto'));
+  await fallback.tick();assert.equal(fallback.sends.length,1);
 
   const paused=harness();
   await paused.tick();await paused.pause();paused.advance(5000);await paused.tick();
