@@ -1,0 +1,14 @@
+/.venv/
+/models/
+/local.json
+/extension/config.js
+__pycache__/
+*.py[cod]
+/data/runtime.sqlite3*
+*.ogg
+*.wav
+*.mp3
+/validacao-*.json
+/amostras-*.json
+.env
+.env.*

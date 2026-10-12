@@ -1,0 +1,8 @@
+{
+  "model": "phi4-mini:latest",
+  "tts_engine": "edge",
+  "tts_voice": "pt-BR-FranciscaNeural",
+  "tts_speed": 1.0,
+  "tts_rate": "-3%",
+  "tts_pitch": "+2Hz"
+}

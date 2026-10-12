@@ -1,0 +1,22 @@
+[
+ {"course":"Ballet Baby A","days":"terça e quinta-feira","time":"08:30 às 09:30","age":"5 a 7 anos","vacancies":15,"page":6},
+ {"course":"Ballet Baby B","days":"terça e quinta-feira","time":"14:00 às 15:00","age":"5 a 7 anos","vacancies":15,"page":6},
+ {"course":"Ballet Infantil A","days":"terça e quinta-feira","time":"09:30 às 10:30","age":"8 a 14 anos","vacancies":20,"page":6},
+ {"course":"Ballet Infantil B","days":"terça e quinta-feira","time":"15:00 às 16:00","age":"8 a 14 anos","vacancies":20,"page":6},
+ {"course":"Dança Mix A","days":"terça e quinta-feira","time":"07:00 às 08:00","age":"a partir de 18 anos","vacancies":40,"page":6},
+ {"course":"Dança Mix B","days":"terça e quinta-feira","time":"16:30 às 17:30","age":"a partir de 18 anos","vacancies":40,"page":6},
+ {"course":"Dança Contemporânea","days":"sexta-feira","time":"14:00 às 16:00","age":"a partir de 18 anos","vacancies":15,"page":6},
+ {"course":"Teatro Infantil","days":"sexta-feira","time":"18:00 às 19:30","age":"6 a 10 anos","vacancies":20,"page":6},
+ {"course":"Teatro Juvenil","days":"terça-feira","time":"18:00 às 19:30","age":"11 a 15 anos","vacancies":30,"page":6},
+ {"course":"Teatro Adulto I","days":"terça-feira","time":"19:30 às 22:00","age":"a partir de 16 anos","vacancies":30,"page":6},
+ {"course":"Teatro Adulto II","days":"sexta-feira","time":"19:30 às 22:00","age":"a partir de 16 anos","vacancies":30,"page":6},
+ {"course":"Teatro na Maturidade","days":"segunda-feira","time":"17:30 às 19:30","age":"a partir de 50 anos","vacancies":20,"page":6},
+ {"course":"Musculação A","days":"segunda, quarta e sexta-feira","time":"06:00 às 07:00","age":"a partir de 35 anos, exceto servidores penais conforme item 2.2","vacancies":20,"page":6},
+ {"course":"Musculação B","days":"segunda, quarta e sexta-feira","time":"07:00 às 08:00","age":"a partir de 35 anos, exceto servidores penais conforme item 2.2","vacancies":20,"page":6},
+ {"course":"Musculação C","days":"segunda, quarta e sexta-feira","time":"08:00 às 09:00","age":"a partir de 35 anos, exceto servidores penais conforme item 2.2","vacancies":20,"page":7},
+ {"course":"Musculação D","days":"segunda, quarta e sexta-feira","time":"09:00 às 10:00","age":"a partir de 35 anos, exceto servidores penais conforme item 2.2","vacancies":20,"page":7},
+ {"course":"Musculação E","days":"segunda, quarta e sexta-feira","time":"10:00 às 11:00","age":"a partir de 35 anos, exceto servidores penais conforme item 2.2","vacancies":20,"page":7},
+ {"course":"Práticas Corporais A","days":"terça e quinta-feira","time":"07:00 às 08:00","age":"a partir de 18 anos","vacancies":12,"page":7},
+ {"course":"Práticas Corporais B","days":"terça e quinta-feira","time":"08:00 às 09:00","age":"a partir de 18 anos","vacancies":12,"page":7},
+ {"course":"Práticas Corporais C","days":"terça e quinta-feira","time":"09:00 às 10:00","age":"a partir de 18 anos","vacancies":12,"page":7}
+]
