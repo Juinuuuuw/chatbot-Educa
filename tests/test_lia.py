@@ -6,10 +6,20 @@ import sys
 import tempfile
 import unittest
 from unittest.mock import patch
+from contextlib import contextmanager, closing
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 import server
 from lia import TOPICS
+
+@contextmanager
+def temporary_db():
+    with tempfile.TemporaryDirectory() as folder:
+        path=pathlib.Path(folder)/'runtime.sqlite3'
+        with closing(sqlite3.connect(path)) as db, db:
+            db.execute('CREATE TABLE responses (key TEXT PRIMARY KEY, response TEXT, created REAL)')
+            db.execute('CREATE TABLE conversations (chat TEXT, message_key TEXT PRIMARY KEY, question TEXT, answer TEXT, created REAL)')
+        with patch.object(server,'DB',path): yield path
 
 class LiaTest(unittest.TestCase):
     def setUp(self):
@@ -120,6 +130,57 @@ class LiaTest(unittest.TestCase):
                 cached = server.message(server.Message(chat_id='teste-local',message_id='audio-1',audio_base64='teste'))
                 self.assertEqual(cached,result)
                 speak.assert_called_once()
+
+    def test_text_sequence_returns_one_answer_to_all_questions(self):
+        with temporary_db() as db_path:
+            result=server.message(server.Message(chat_id='batch-text',message_id='batch-test-1',parts=[
+                {'text':'Boa noite! Tudo bom?'},
+                {'text':'Os cursos são gratuitos e quais documentos preciso levar?'},
+                {'text':'Tenho 60 anos e quero fazer teatro. Posso participar?'},
+            ]))
+            self.assertTrue(result['text'].startswith('Boa noite!'))
+            self.assertIn('gratuitos',result['text'])
+            self.assertIn('CPF',result['text'])
+            self.assertIn('Maturidade',result['text'])
+            self.assertNotIn('1. Cursos',result['text'])
+            with closing(sqlite3.connect(db_path)) as db:
+                self.assertEqual(db.execute('SELECT count(*) FROM conversations').fetchone()[0],1)
+
+    def test_audio_sequence_transcribed_in_order_and_spoken_once(self):
+        with temporary_db(), patch.object(server,'transcribe',side_effect=['Boa tarde','Os cursos são gratuitos?','Quais documentos preciso levar?']) as transcribe, patch.object(server,'speak',return_value='audio-unico') as speak:
+            message=server.Message(chat_id='batch-audio',message_id='batch-test-2',parts=[
+                {'audio_base64':'audio1'},{'audio_base64':'audio2'},{'audio_base64':'audio3'},
+            ])
+            result=server.message(message)
+            self.assertEqual([call.args[0] for call in transcribe.call_args_list],['audio1','audio2','audio3'])
+            self.assertEqual(result['audio_base64'],'audio-unico')
+            self.assertIn('gratuitos',result['text'])
+            self.assertIn('CPF',result['text'])
+            self.assertNotIn('1. Cursos',result['text'])
+            speak.assert_called_once()
+            self.assertEqual(server.message(message),result)
+            self.assertEqual(transcribe.call_count,3)
+            speak.assert_called_once()
+
+    def test_mixed_sequence_and_numeric_options(self):
+        with temporary_db(), patch.object(server,'transcribe',return_value='Quais documentos preciso levar?'), patch.object(server,'speak',return_value='audio-unico'):
+            result=server.message(server.Message(chat_id='batch-mixed',message_id='batch-test-3',parts=[
+                {'text':'Oi'}, {'text':'4'}, {'audio_base64':'audio'},
+            ]))
+            self.assertIn('gratuitos',result['text'])
+            self.assertIn('CPF',result['text'])
+            self.assertEqual(result['audio_base64'],'audio-unico')
+            self.assertNotIn('1. Cursos',result['text'])
+
+    def test_unrecognized_audio_does_not_silently_drop_question(self):
+        with temporary_db(), patch.object(server,'transcribe',return_value=''), patch.object(server,'speak') as speak:
+            with self.assertRaises(server.HTTPException) as raised:
+                server.message(server.Message(chat_id='batch-bad',message_id='batch-test-4',parts=[
+                    {'text':'É gratuito?'},{'audio_base64':'inaudivel'},
+                ]))
+            self.assertEqual(raised.exception.status_code,422)
+            self.assertIn('um dos áudios',raised.exception.detail)
+            speak.assert_not_called()
 
 if __name__ == '__main__':
     unittest.main()

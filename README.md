@@ -8,6 +8,10 @@ Lia é um nome curto, remete a “ler” e soa muito bem em voz sintetizada. Uma
 
 Mensagens de áudio são transcritas e respondidas em áudio, sem apresentar o menu, inclusive quando contêm apenas uma saudação. Perguntas gerais reconhecidas usam as respostas conferidas; questões mais específicas podem consultar o RAG e a Phi-4 Mini. Perguntas combinadas preservam os assuntos identificados.
 
+Desde a versão 0.3.0, a extensão reúne mensagens novas da conversa ativada e espera cinco segundos sem detectar outra mensagem antes de consultar a API. A espera é renovada quando detecta uma nova mensagem. Textos e transcrições são reunidos na ordem de chegada e recebem uma única resposta. Havendo áudio na sequência, a resposta é falada. Uma saudação seguida de perguntas não dispara o menu separadamente.
+
+Mensagens recebidas depois que o processamento do grupo começou ficam para a próxima resposta. A verificação periódica do navegador pode acrescentar atraso, especialmente em segundo plano. Pausar cancela a espera. O grupo comporta até 20 mensagens, 12 MB totais de áudio e 12 mil caracteres de pergunta combinada. Um áudio incompreensível em um grupo interrompe seu processamento com uma orientação para repeti-lo, sem responder silenciosamente apenas às outras partes.
+
 Questões que dependem de decisão da equipe, informações internas ou atendimento individualizado recebem orientação para procurar a EdUCA. A Lia não confirma vagas atuais, não decide exceções e não promete certificado sem fonte. Um pedido explícito de atendente pausa o atendimento automático, sem notificação automática à equipe.
 
 Para conferir as regras sem iniciar a API nem enviar mensagens ao WhatsApp:

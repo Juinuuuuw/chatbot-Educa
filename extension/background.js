@@ -2,6 +2,8 @@
 importScripts('config.js');
 importScripts('bridge.js');
 let activeJob=null;
+let batchTimer=null;
+const BATCH_WAIT_MS=5000;
 const BASE='http://127.0.0.1:8765';
 async function api(path,data,signal) {
   const timeout=AbortSignal.timeout(data?360000:8000);
@@ -43,7 +45,8 @@ async function start(self) {
     await Promise.race([activeJob.promise, new Promise(resolve=>setTimeout(resolve,3000))]);
     if(activeJob) throw new Error('O envio anterior ainda está terminando. Aguarde alguns segundos e clique em Ativar novamente.');
   }
-  await api('/health');
+  const health=await api('/health');
+  if(!health.supports_batches) throw new Error('A API ainda está na versão anterior. Reinicie a API da Lia antes de ativar.');
   const tabs=await chrome.tabs.query({active:true,currentWindow:true});
   const tab=tabs[0];
   if(!tab?.url?.startsWith('https://web.whatsapp.com/')) throw new Error('Abra o WhatsApp Web na aba atual e selecione a conversa de teste.');
@@ -54,16 +57,29 @@ async function start(self) {
   if(active.isSelf && !self) throw new Error('Marque “Testar em Mensagem para você” para testar na sua própria conversa.');
   const baseline=await messages(tab.id,active.jid);
   if((await chrome.storage.local.get('run')).run!==preparingRun) throw new Error('Ativação cancelada pela pausa. Clique em Ativar quando quiser retomar.');
-  await chrome.storage.local.set({enabled:true,tabId:tab.id,jid:active.jid,label:active.label,self,started:Math.floor(Date.now()/1000),seen:baseline.map(m=>m.id),run:crypto.randomUUID(),lastStatus:self?'Ativo. Envie uma mensagem normal ou um áudio nesta conversa.':'Ativo. Aguardando uma mensagem enviada pelo contato para você.'});
+  await chrome.storage.local.set({enabled:true,tabId:tab.id,jid:active.jid,label:active.label,self,started:Math.floor(Date.now()/1000),seen:baseline.map(m=>m.id),run:crypto.randomUUID(),pendingBatch:null,lastStatus:self?'Ativo. Envie uma mensagem normal ou um áudio nesta conversa.':'Ativo. Aguardando uma mensagem enviada pelo contato para você.'});
   await chrome.alarms.create('educa-tick',{periodInMinutes:0.5});
 }
 async function pause(reason='Pausado por você.') {
-  await chrome.storage.local.set({enabled:false,run:crypto.randomUUID(),lastStatus:reason});
+  clearTimeout(batchTimer);batchTimer=null;
+  await chrome.storage.local.set({enabled:false,run:crypto.randomUUID(),pendingBatch:null,lastStatus:reason});
   activeJob?.controller.abort();
 }
 async function remember(id) {
+  return rememberMany([id]);
+}
+async function rememberMany(ids) {
   const s=await chrome.storage.local.get('seen');
-  await chrome.storage.local.set({seen:[...new Set([...(s.seen||[]),id])].slice(-2000)});
+  await chrome.storage.local.set({seen:[...new Set([...(s.seen||[]),...ids])].slice(-2000)});
+}
+function scheduleBatch(delay) {
+  clearTimeout(batchTimer);
+  batchTimer=setTimeout(()=>{batchTimer=null;tick();},Math.max(1,delay));
+}
+async function batchId(ids) {
+  if(ids.length===1) return ids[0];
+  const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(ids)));
+  return 'batch:'+Array.from(new Uint8Array(hash),b=>b.toString(16).padStart(2,'0')).join('');
 }
 function tick() {
   if(activeJob) return activeJob.promise;
@@ -84,6 +100,7 @@ async function processTick(job) {
     await ensure(s.tabId);
     stage='Ler mensagens recebidas';
     const msgs=(await messages(s.tabId,s.jid)).sort((a,b)=>a.t-b.t);
+    const incoming=[];
     for(const m of msgs) {
       const state=await chrome.storage.local.get(['enabled','run','seen','ownTokens']);
       if(!state.enabled || state.run!==s.run) return;
@@ -93,16 +110,37 @@ async function processTick(job) {
       if(m.fromMe && !s.self) {await remember(m.id);continue;}
       if(!m.fromMe && s.self) {await remember(m.id);continue;}
       if(s.self && (m.body.startsWith('[Lia · teste]\n') || m.body.startsWith('[Educa · teste]\n'))) {await remember(m.id);continue;}
-      await chrome.storage.local.set({lastStatus:'Preparando resposta…'});
-      const audio=['ptt','audio'].includes(m.type);
-      const body={chat_id:s.jid,message_id:m.id,text:m.body,reply_audio:audio};
-      if(audio) {
+      incoming.push(m);
+    }
+    if(!incoming.length) return;
+    if(incoming.length>20) throw new Error('Recebi mais de 20 mensagens na sequência. Divida o envio em grupos menores.');
+    const ids=incoming.map(m=>m.id);
+    const current=await chrome.storage.local.get(['enabled','run','pendingBatch']);
+    if(!current.enabled || current.run!==s.run) return;
+    const previous=current.pendingBatch;
+    if(previous?.run!==s.run || JSON.stringify(previous.ids)!==JSON.stringify(ids)) {
+      await chrome.storage.local.set({pendingBatch:{run:s.run,ids,lastObservedAt:Date.now()},lastStatus:`Reunindo ${incoming.length} mensagem(ns). Aguardando 5 segundos após a última…`});
+      scheduleBatch(BATCH_WAIT_MS);
+      return;
+    }
+    const remaining=BATCH_WAIT_MS-(Date.now()-previous.lastObservedAt);
+    if(remaining>0) {scheduleBatch(remaining);return;}
+    clearTimeout(batchTimer);batchTimer=null;
+    const audio=incoming.some(m=>['ptt','audio'].includes(m.type));
+    const body={chat_id:s.jid,message_id:await batchId(ids),reply_audio:audio,parts:[]};
+    await chrome.storage.local.set({lastStatus:`Preparando uma resposta para ${incoming.length} mensagem(ns)…`});
+    for(const m of incoming) {
+      const part={text:m.body};
+      if(['ptt','audio'].includes(m.type)) {
         stage='Baixar áudio recebido';
         await chrome.storage.local.set({lastStatus:'Baixando o áudio recebido…'});
-        body.audio_base64=await page(s.tabId,'media',[m.id]);
-        if(!body.audio_base64) throw new Error('O download do áudio retornou vazio.');
+        part.audio_base64=await page(s.tabId,'media',[m.id]);
+        part.text='';
+        if(!part.audio_base64) throw new Error('O download do áudio retornou vazio.');
         await chrome.storage.local.set({lastStatus:'Transcrevendo o áudio e preparando a resposta falada…'});
       }
+      body.parts.push(part);
+    }
       stage=audio?'Transcrever e gerar resposta falada':'Consultar a API da Lia';
       const response=await api('/message',body,job.controller.signal);
       const now=await chrome.storage.local.get(['enabled','run']);
@@ -118,7 +156,8 @@ async function processTick(job) {
       const beforeSend=await chrome.storage.local.get(['enabled','run']);
       if(!beforeSend.enabled || beforeSend.run!==s.run) return;
       // Marcar antes do envio evita reenvio automático se a confirmação do WhatsApp se perder.
-      await remember(m.id);
+      await rememberMany(ids);
+      await chrome.storage.local.set({pendingBatch:null});
       await chrome.storage.local.set({lastStatus:audio?'Enviando resposta em áudio…':'Enviando resposta em texto…'});
       stage=audio?'Enviar resposta em áudio':'Enviar resposta em texto';
       const sent=await page(s.tabId,'send',[s.jid,response,prepared.id,s.self]);
@@ -128,7 +167,6 @@ async function processTick(job) {
       if(!afterSend.enabled || afterSend.run!==s.run) return;
       if(response.handoff) {await pause('Atendimento humano solicitado. Bot pausado nesta conversa.');return;}
       await chrome.storage.local.set({lastStatus:`Resposta enviada (${response.mode}).`});
-    }
   } catch(e) {
     const current=await chrome.storage.local.get(['enabled','run']);
     if(current.enabled && current.run===job.run) {

@@ -5,7 +5,7 @@ from fastapi import FastAPI, HTTPException, Depends, Header
 from pydantic import BaseModel, Field
 from rank_bm25 import BM25Okapi
 from contextlib import closing
-from lia import MENU, TEAM, greeting as lia_greeting, menu_choice, restricted, in_scope, topics_for, static_answer, fully_covered
+from lia import MENU, MENU_QUERIES, TEAM, greeting as lia_greeting, menu_choice, restricted, in_scope, topics_for, static_answer, fully_covered
 
 ROOT=pathlib.Path(__file__).resolve().parent
 DATA=ROOT/'data'; DATA.mkdir(exist_ok=True)
@@ -36,12 +36,44 @@ def auth(x_educa_token: str=Header(default='')):
 
 app=FastAPI(title='Lia — assistente virtual da EdUCA',dependencies=[Depends(auth)])
 
+class MessagePart(BaseModel):
+    text:str=Field(default='',max_length=4000)
+    audio_base64:str=Field(default='',max_length=17_000_000)
+
 class Message(BaseModel):
     chat_id:str=Field(min_length=1,max_length=150)
     message_id:str=Field(min_length=1,max_length=250)
     text:str=Field(default='',max_length=4000)
     audio_base64:str=Field(default='',max_length=17_000_000)
     reply_audio:bool=False
+    parts:list[MessagePart]=Field(default_factory=list,max_length=20)
+
+def prepare_question(m):
+    if not m.parts:
+        q=transcribe(m.audio_base64) if m.audio_base64 else m.text.strip()
+        return q,q if m.audio_base64 else '',bool(m.audio_base64)
+    if m.text or m.audio_base64: raise ValueError('Envie uma sequência ou uma mensagem única, sem misturar os dois formatos.')
+    if len(m.parts)==1:
+        part=m.parts[0]
+        q=transcribe(part.audio_base64) if part.audio_base64 else part.text.strip()
+        return q,q if part.audio_base64 else '',bool(part.audio_base64)
+    if sum(len(p.audio_base64) for p in m.parts)>17_000_000:
+        raise ValueError('Os áudios da sequência excedem o limite total de 12 MB. Envie uma sequência menor.')
+    texts=[];transcripts=[];salutation=None
+    for part in m.parts:
+        text=transcribe(part.audio_base64) if part.audio_base64 else part.text.strip()
+        if part.audio_base64:
+            if not text: raise ValueError('Não consegui entender um dos áudios da sequência. Repita esse áudio, por favor.')
+            transcripts.append(text)
+        hello=lia_greeting(text)
+        if hello: salutation=hello
+        elif text:
+            choice=menu_choice(text)
+            texts.append(MENU_QUERIES[choice-1] if choice else text)
+    q='\n\n'.join(texts)
+    if salutation: q=salutation+'!'+('\n\n'+q if q else '')
+    if len(q)>12000: raise ValueError('A sequência ficou muito longa. Divida as perguntas em grupos menores.')
+    return q,'\n\n'.join(transcripts),any(p.audio_base64 for p in m.parts)
 
 ADMISSION_STATUS='Só um detalhe: as aulas deste semestre tinham início previsto para 3 de agosto de 2026. Ainda não tenho confirmação de inscrições para uma nova turma. Se quiser, posso pausar minhas respostas para você falar com a equipe sobre isso.'
 STALE='O período de matrícula previsto para julho de 2026 já passou. '+ADMISSION_STATUS
@@ -346,7 +378,7 @@ def transcribe(encoded):
 def health():
     engine=config.get('tts_engine','kokoro')
     voice_files={'supertonic':ROOT/'models/supertonic-3/onnx/vocoder.onnx','kokoro':ROOT/'models/kokoro/kokoro-v1.0.onnx','piper':ROOT/'models/pt_BR-faber-medium.onnx'}
-    return {'ok':True,'model':config['model'],'chunks':len(chunks),'voice':engine=='edge' or voice_files.get(engine,ROOT/'missing-model').exists(),'voice_requires_internet':engine=='edge','tts_engine':engine,'tts_voice':config.get('tts_voice','F2' if engine=='supertonic' else 'pf_dora'),'transcription':(ROOT/'models/whisper-small/model.bin').exists()}
+    return {'ok':True,'supports_batches':True,'model':config['model'],'chunks':len(chunks),'voice':engine=='edge' or voice_files.get(engine,ROOT/'missing-model').exists(),'voice_requires_internet':engine=='edge','tts_engine':engine,'tts_voice':config.get('tts_voice','F2' if engine=='supertonic' else 'pf_dora'),'transcription':(ROOT/'models/whisper-small/model.bin').exists()}
 
 @app.post('/message')
 def message(m:Message):
@@ -361,12 +393,12 @@ def message(m:Message):
         history=[{'question':q,'answer':a} for q,a in reversed(previous)]
         if cached: return json.loads(cached[0])
         try:
-            q=transcribe(m.audio_base64) if m.audio_base64 else m.text.strip()
+            q,transcript,has_audio=prepare_question(m)
             if not q:
                 out={'text':'Não consegui entender o áudio. Pode repetir mais perto do microfone, por favor?','mode':'repetir_audio','sources':[],'handoff':False}
-            else: out=answer(q,history,is_audio=bool(m.audio_base64))
-            out['transcript']=q if m.audio_base64 else ''
-            if m.reply_audio or m.audio_base64:
+            else: out=answer(q,history,is_audio=has_audio)
+            out['transcript']=transcript
+            if m.reply_audio or has_audio:
                 out['audio_base64']=speak(out['text']); out['audio_mime']='audio/ogg'
             with closing(sqlite3.connect(DB)) as db, db:
                 db.execute('INSERT OR REPLACE INTO responses VALUES (?,?,?)',(key,json.dumps(out,ensure_ascii=False),time.time()))

@@ -7,6 +7,12 @@ TOPICS = (
     'Gratuidade', 'Dias e horários', 'Vagas disponíveis', 'Local das aulas',
     'Documentos para inscrição', 'Certificado', 'Novas turmas e projetos',
 )
+MENU_QUERIES = (
+    'Quais cursos e atividades são oferecidos?', 'Como faço para me inscrever?',
+    'Quem pode participar?', 'As atividades são gratuitas?', 'Quais são os dias e horários das aulas?',
+    'Ainda há vagas disponíveis?', 'Onde acontecem as aulas?', 'Quais documentos preciso levar?',
+    'Recebo certificado?', 'Como acompanho novas turmas e projetos?',
+)
 MENU = ('Sou a Lia, assistente virtual da EdUCA. 😊\n'
         'Posso ajudar com estas dúvidas:\n\n' +
         '\n'.join(f'{i}. {topic}' for i, topic in enumerate(TOPICS, 1)) +
