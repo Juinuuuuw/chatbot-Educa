@@ -56,6 +56,12 @@ O último passo baixa os modelos locais de áudio e confere a integridade da bib
 
 Somente a conversa ativada é atendida. Para uma conversa individual com outra pessoa, desmarque a opção de teste. A extensão não atende grupos. Um pedido de atendente pausa o bot; não chama nem notifica uma pessoa automaticamente.
 
+### Diagnóstico de falhas
+
+Na versão 0.2.1, o painel informa a etapa que falhou e preserva o detalhe recebido do WhatsApp ou da API. Uma falha sem descrição também recebe uma mensagem explícita. Ao atualizar, recarregue a extensão e a aba do WhatsApp Web. Em chat de terceiro, a mensagem de teste precisa ser enviada pelo contato para você; mensagens que você envia para ele são ignoradas. O prefixo `[Lia · teste]` aparece somente em “Mensagem para você”.
+
+O último erro fica no armazenamento local da extensão, com etapa, descrição e horário. Esses dados não são enviados a um serviço de monitoramento. Para testar o fluxo da extensão com navegador e WhatsApp simulados, use Node.js e execute `node tests/test_extension.cjs`.
+
 ## Base de conhecimento
 
 `data/` contém uma cópia do edital 019/2026, documentos extraídos, trechos e 20 registros de turmas conferidos na tabela. A base inicial tem 17 documentos (sete páginas do edital e dez notícias), 34 trechos e 20 registros de turmas. As fontes constam de `data/documents.json`.

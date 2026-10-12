@@ -1,29 +1,39 @@
 /* A chave local fica no service worker, nunca no contexto da página. */
 importScripts('config.js');
+importScripts('bridge.js');
 let activeJob=null;
 const BASE='http://127.0.0.1:8765';
 async function api(path,data,signal) {
   const timeout=AbortSignal.timeout(data?360000:8000);
   const r=await fetch(BASE+path,{method:data?'POST':'GET',headers:{'X-Educa-Token':EDUCA_TOKEN,...(data?{'Content-Type':'application/json'}:{})},body:data?JSON.stringify(data):undefined,signal:signal?AbortSignal.any([signal,timeout]):timeout});
-  if(!r.ok) {let detail;try {detail=(await r.json()).detail;}catch{} throw new Error(detail || `API: ${r.status}`);}
+  if(!r.ok) {
+    let detail;try {detail=(await r.json()).detail;}catch{}
+    if(Array.isArray(detail)) detail=detail.map(d=>`${(d.loc||[]).join('.')}: ${d.msg||'Campo inválido'}`).join('; ');
+    throw new Error(`API HTTP ${r.status}: ${typeof detail==='string'?detail:'Não foi possível processar a solicitação.'}`);
+  }
   return r.json();
 }
-async function page(tabId,func,args=[]) {
-  const r=await chrome.scripting.executeScript({target:{tabId},world:'MAIN',func,args});
-  if(r[0]?.error) throw new Error(r[0].error.message);
-  return r[0]?.result;
+function errorText(error) {
+  if(typeof error==='string' && error.trim()) return error.slice(0,500);
+  if(typeof error?.message==='string' && error.message.trim()) return error.message.slice(0,500);
+  try {const text=JSON.stringify(error);if(text && !['{}','null'].includes(text))return text.slice(0,500);} catch {}
+  return 'A operação falhou sem informar o motivo.';
+}
+async function page(tabId,operation,args=[]) {
+  const r=await chrome.scripting.executeScript({target:{tabId},world:'MAIN',func:whatsappBridge,args:[operation,...args]});
+  const result=r[0]?.result;
+  if(!result || typeof result.ok!=='boolean') throw new Error('Não foi possível obter o resultado do WhatsApp. Recarregue a aba e a extensão.');
+  if(!result.ok) throw new Error(errorText(result.error)+(result.error?.code?` (código ${result.error.code})`:''));
+  return result.value;
 }
 async function ensure(tabId) {
-  const exists=await page(tabId,()=>!!window.WPP);
+  const exists=await page(tabId,'exists');
   if(!exists) await chrome.scripting.executeScript({target:{tabId},world:'MAIN',files:['wppconnect-wa.js']});
-  const ready=await page(tabId,()=>!!window.WPP?.isReady);
+  const ready=await page(tabId,'ready');
   if(!ready) throw new Error('O WhatsApp está carregando. Aguarde alguns segundos e tente ativar novamente.');
 }
 async function messages(tabId,jid) {
-  return page(tabId,async target=> {
-    const msgs=await WPP.chat.getMessages(target,{count:40});
-    return msgs.map(m=>({id:m.id?._serialized || String(m.id),token:m.id?.id || '',fromMe:!!m.id?.fromMe,body:typeof m.body==='string'?m.body:'',type:m.type,t:Number(m.t||m.timestamp||0)}));
-  },[jid]);
+  return page(tabId,'messages',[jid]);
 }
 async function start(self) {
   // Cancelar a consulta antiga libera a retomada; o resultado antigo não pode alterar a nova sessão.
@@ -38,16 +48,13 @@ async function start(self) {
   const tab=tabs[0];
   if(!tab?.url?.startsWith('https://web.whatsapp.com/')) throw new Error('Abra o WhatsApp Web na aba atual e selecione a conversa de teste.');
   await ensure(tab.id);
-  const active=await page(tab.id,()=> {
-    const c=WPP.chat.getActiveChat();
-    return c?{jid:c.id.toString(),label:c.formattedTitle || c.name || 'Conversa de teste',isSelf:c.isSelf===true || c.contact?.isMe===true || c.id.equals?.(WPP.conn.getMyUserId())===true}:null;
-  });
+  const active=await page(tab.id,'active');
   if(!active || !/@(c\.us|lid)$/.test(active.jid)) throw new Error('Selecione uma conversa individual. Grupos não são aceitos.');
   if(self && !active.isSelf) throw new Error('O modo “Mensagem para você” só pode ser usado na sua própria conversa.');
   if(active.isSelf && !self) throw new Error('Marque “Testar em Mensagem para você” para testar na sua própria conversa.');
   const baseline=await messages(tab.id,active.jid);
   if((await chrome.storage.local.get('run')).run!==preparingRun) throw new Error('Ativação cancelada pela pausa. Clique em Ativar quando quiser retomar.');
-  await chrome.storage.local.set({enabled:true,tabId:tab.id,jid:active.jid,label:active.label,self,started:Math.floor(Date.now()/1000),seen:baseline.map(m=>m.id),run:crypto.randomUUID(),lastStatus:'Ativo. Envie uma mensagem normal ou um áudio; não precisa de comando.'});
+  await chrome.storage.local.set({enabled:true,tabId:tab.id,jid:active.jid,label:active.label,self,started:Math.floor(Date.now()/1000),seen:baseline.map(m=>m.id),run:crypto.randomUUID(),lastStatus:self?'Ativo. Envie uma mensagem normal ou um áudio nesta conversa.':'Ativo. Aguardando uma mensagem enviada pelo contato para você.'});
   await chrome.alarms.create('educa-tick',{periodInMinutes:0.5});
 }
 async function pause(reason='Pausado por você.') {
@@ -66,13 +73,16 @@ function tick() {
   return job.promise;
 }
 async function processTick(job) {
+  let stage='Verificar atendimento';
   try {
     const s=await chrome.storage.local.get(null);
     job.run=s.run;
     if(!s.enabled) return;
     const tab=await chrome.tabs.get(s.tabId);
     if(!tab.url?.startsWith('https://web.whatsapp.com/')) return pause('A aba do WhatsApp foi fechada ou mudou de endereço.');
+    stage='Conectar ao WhatsApp';
     await ensure(s.tabId);
+    stage='Ler mensagens recebidas';
     const msgs=(await messages(s.tabId,s.jid)).sort((a,b)=>a.t-b.t);
     for(const m of msgs) {
       const state=await chrome.storage.local.get(['enabled','run','seen','ownTokens']);
@@ -87,31 +97,18 @@ async function processTick(job) {
       const audio=['ptt','audio'].includes(m.type);
       const body={chat_id:s.jid,message_id:m.id,text:m.body,reply_audio:audio};
       if(audio) {
+        stage='Baixar áudio recebido';
         await chrome.storage.local.set({lastStatus:'Baixando o áudio recebido…'});
-        body.audio_base64=await page(s.tabId,async id=> {
-          const blob=await WPP.chat.downloadMedia(id);
-          if(blob.size>12*1024*1024) throw new Error('Áudio maior que 12 MB.');
-          return await new Promise((resolve,reject)=>{
-            const reader=new FileReader();
-            reader.onload=()=>resolve(String(reader.result).split(',')[1]);
-            reader.onerror=()=>reject(new Error('Não foi possível ler o áudio recebido.'));
-            reader.readAsDataURL(blob);
-          });
-        },[m.id]);
+        body.audio_base64=await page(s.tabId,'media',[m.id]);
         if(!body.audio_base64) throw new Error('O download do áudio retornou vazio.');
         await chrome.storage.local.set({lastStatus:'Transcrevendo o áudio e preparando a resposta falada…'});
       }
+      stage=audio?'Transcrever e gerar resposta falada':'Consultar a API da Lia';
       const response=await api('/message',body,job.controller.signal);
       const now=await chrome.storage.local.get(['enabled','run']);
       if(!now.enabled || now.run!==s.run) return;
-      const prepared=await page(s.tabId,async jid=>{
-        const key=await WPP.chat.generateMessageID(jid);
-        const id=key?._serialized || key?.toString?.();
-        if(typeof id!=='string' || !id || id==='undefined' || id==='[object Object]') throw new Error('Não foi possível preparar a identificação antes do envio.');
-        window.__educaOutgoingKeys ||= new Map();
-        window.__educaOutgoingKeys.set(id,key);
-        return {id,token:key.id || ''};
-      },[s.jid]);
+      stage='Preparar envio no WhatsApp';
+      const prepared=await page(s.tabId,'prepare',[s.jid]);
       if(!prepared?.id) throw new Error('O WhatsApp não retornou a identificação preparada.');
       await remember(prepared.id);
       if(prepared.token) {
@@ -123,17 +120,8 @@ async function processTick(job) {
       // Marcar antes do envio evita reenvio automático se a confirmação do WhatsApp se perder.
       await remember(m.id);
       await chrome.storage.local.set({lastStatus:audio?'Enviando resposta em áudio…':'Enviando resposta em texto…'});
-      const sent=await page(s.tabId,async (jid,r,preparedId)=> {
-        const outgoingKey=window.__educaOutgoingKeys?.get(preparedId);
-        if(!outgoingKey) throw new Error('A identificação preparada se perdeu. Reative o teste.');
-        let result;
-        const options={messageId:outgoingKey,waitForAck:false};
-        if(r.audio_base64) result=await WPP.chat.sendFileMessage(jid,`data:${r.audio_mime};base64,${r.audio_base64}`,{...options,type:'audio',isPtt:true,filename:r.audio_mime.startsWith('audio/ogg')?'educa.ogg':'educa.wav',mimetype:r.audio_mime});
-        else result=await WPP.chat.sendTextMessage(jid,'[Lia · teste]\n'+r.text,{...options,detectMentioned:false});
-        window.__educaOutgoingKeys.delete(preparedId);
-        const key=result?.id || result?.message?.id;
-        return {id:key?._serialized || (key?String(key):null) || preparedId};
-      },[s.jid,response,prepared.id]);
+      stage=audio?'Enviar resposta em áudio':'Enviar resposta em texto';
+      const sent=await page(s.tabId,'send',[s.jid,response,prepared.id,s.self]);
       if(sent?.id) await remember(sent.id);
       else throw new Error('Não foi possível confirmar o resultado do envio.');
       const afterSend=await chrome.storage.local.get(['enabled','run']);
@@ -143,7 +131,11 @@ async function processTick(job) {
     }
   } catch(e) {
     const current=await chrome.storage.local.get(['enabled','run']);
-    if(current.enabled && current.run===job.run) await pause('Erro: '+e.message+' Reative após conferir a conversa; não haverá reenvio automático.');
+    if(current.enabled && current.run===job.run) {
+      const detail=errorText(e);
+      await chrome.storage.local.set({lastError:{stage,detail,at:new Date().toISOString()}});
+      await pause(`Erro ao ${stage.toLowerCase()}: ${detail}\nReative após conferir a conversa. Um envio incerto não será repetido automaticamente.`);
+    }
   }
 }
 chrome.alarms.onAlarm.addListener(a=>{if(a.name==='educa-tick')tick();});
@@ -157,8 +149,9 @@ chrome.runtime.onMessage.addListener((m,sender,reply)=> {
     else if(m.type==='stop') {await pause();reply({ok:true});}
     else reply({ok:false,error:'Ação desconhecida'});
   })().catch(async e=>{
-    await chrome.storage.local.set({enabled:false,lastStatus:'Não foi possível ativar: '+e.message});
-    reply({ok:false,error:e.message});
+    const detail=errorText(e);
+    await chrome.storage.local.set({enabled:false,lastError:{stage:'Ativar atendimento',detail,at:new Date().toISOString()},lastStatus:'Não foi possível ativar: '+detail});
+    reply({ok:false,error:detail});
   });
   return true;
 });
