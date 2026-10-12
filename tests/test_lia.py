@@ -1,0 +1,125 @@
+"""Casos de aceitação do atendimento, sem Ollama, serviço de voz ou WhatsApp."""
+import base64
+import pathlib
+import sqlite3
+import sys
+import tempfile
+import unittest
+from unittest.mock import patch
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
+import server
+from lia import TOPICS
+
+class LiaTest(unittest.TestCase):
+    def setUp(self):
+        self.no_network = patch.object(server.requests, 'post', side_effect=AssertionError('Não deveria consultar o LLM'))
+        self.no_network.start()
+        self.addCleanup(self.no_network.stop)
+
+    def test_text_greetings_show_menu(self):
+        for q in ['Oi', 'Oii :)', 'Olá!', 'Bom dia', 'Boa tarde! Tudo bem?', 'Boa noite! Tudo bom?']:
+            with self.subTest(q=q):
+                result = server.answer(q)
+                self.assertEqual(result['mode'], 'menu')
+                self.assertIn('Sou a Lia', result['text'])
+                self.assertIn('10. Novas turmas', result['text'])
+
+    def test_audio_greeting_has_no_menu(self):
+        result = server.answer('Boa noite! Tudo bom?', is_audio=True)
+        self.assertEqual(result['mode'], 'saudacao_audio')
+        self.assertIn('Boa noite!', result['text'])
+        self.assertNotIn('1.', result['text'])
+
+    def test_all_menu_options_are_static(self):
+        for i in range(1, len(TOPICS)+1):
+            result = server.answer(str(i))
+            self.assertEqual(result['mode'], 'faq')
+            self.assertNotIn('Posso ajudar com estas dúvidas', result['text'])
+
+    def test_full_questions(self):
+        questions = [
+            'Quais cursos e atividades estão sendo oferecidos atualmente pela EdUCA?',
+            'Como faço para me inscrever em um curso ou atividade da EdUCA?',
+            'Quem pode participar das atividades?',
+            'As atividades da EdUCA são gratuitas ou não?',
+            'Quais são os dias e horários das aulas?',
+            'Ainda há vagas disponíveis para determinado curso ou atividade?',
+            'Onde acontecem as aulas e atividades da EdUCA?',
+            'Quais documentos preciso apresentar para realizar a inscrição?',
+            'Recebo certificado ao concluir o curso ou atividade?',
+            'Como posso acompanhar a abertura de novas turmas, cursos e projetos da EdUCA?',
+        ]
+        for question in questions:
+            with self.subTest(question=question):
+                result = server.answer(question)
+                self.assertEqual(result['mode'], 'faq')
+                self.assertNotIn('1. Cursos', result['text'])
+
+    def test_combined_static_questions(self):
+        text = server.answer('Os cursos são gratuitos e quais documentos preciso levar?')['text']
+        self.assertIn('gratuitos', text)
+        self.assertIn('CPF', text)
+
+    def test_current_offers_and_certificate_are_not_promised(self):
+        self.assertIn('confirme com a equipe', server.answer('1')['text'])
+        self.assertIn('Não consigo confirmar', server.answer('6')['text'])
+        self.assertIn('Não encontrei', server.answer('9')['text'])
+
+    def test_specific_schedule_and_followup(self):
+        history = [{'question':'Tenho 60 anos, quero teatro', 'answer':'Teatro na Maturidade'}]
+        text = server.answer('Quais os dias e horários das aulas?', history)['text']
+        self.assertIn('17:30', text)
+        self.assertIn('segunda', text)
+        self.assertNotIn('50 anos', text)
+        self.assertNotIn('vagas', text)
+
+    def test_course_list_does_not_select_maturity_theater(self):
+        history=[{'question':'1','answer':server.answer('1')['text']}]
+        text=server.answer('Quais os dias e horários das aulas?',history)['text']
+        self.assertIn('Qual curso',text)
+        self.assertNotIn('17:30',text)
+
+    def test_uncovered_question_is_forwarded_with_checked_facts(self):
+        response=unittest.mock.Mock()
+        response.json.return_value={'message':{'content':'Os cursos do edital são gratuitos. Não encontrei confirmação sobre experiência prévia; procure a equipe.'}}
+        with patch.object(server.requests,'post',return_value=response) as call:
+            result=server.answer('Os cursos são gratuitos? Preciso de experiência para teatro?')
+            self.assertEqual(result['mode'],'rag_phi4')
+            prompt=call.call_args.kwargs['json']['messages'][-1]['content']
+            self.assertIn('experiência',prompt)
+            self.assertIn('RESPOSTAS CONFERIDAS',prompt)
+
+    def test_team_decisions_and_private_cases(self):
+        for q in ['Pode abrir uma exceção para eu entrar na turma?', 'Consulte minha matrícula',
+                  'Quero dados internos da EdUCA', 'Tenho uma lesão, posso fazer musculação?',
+                  'Quero cancelar minha inscrição', 'Envie a lista de alunos', 'Preciso do meu certificado']:
+            with self.subTest(q=q):
+                result = server.answer(q)
+                self.assertEqual(result['mode'], 'equipe')
+                self.assertIn('Procure a equipe', result['text'])
+
+    def test_unrelated_and_explicit_handoff(self):
+        self.assertEqual(server.answer('Quem ganhou o jogo ontem?')['mode'], 'fora_escopo')
+        self.assertTrue(server.answer('Quero um atendente')['handoff'])
+
+    def test_audio_message_endpoint_returns_audio_without_menu(self):
+        with tempfile.TemporaryDirectory() as folder:
+            db_path = pathlib.Path(folder)/'runtime.sqlite3'
+            with sqlite3.connect(db_path) as db:
+                db.execute('CREATE TABLE responses (key TEXT PRIMARY KEY, response TEXT, created REAL)')
+                db.execute('CREATE TABLE conversations (chat TEXT, message_key TEXT PRIMARY KEY, question TEXT, answer TEXT, created REAL)')
+            db.close()
+            with patch.object(server,'DB',db_path), patch.object(server,'transcribe',return_value='Oi'), patch.object(server,'speak',return_value='audio-falso') as speak:
+                result = server.message(server.Message(chat_id='teste-local', message_id='audio-1',audio_base64=base64.b64encode(b'teste').decode()))
+                self.assertEqual(result['mode'],'saudacao_audio')
+                self.assertEqual(result['audio_mime'],'audio/ogg')
+                self.assertEqual(result['audio_base64'],'audio-falso')
+                self.assertNotIn('1. Cursos', result['text'])
+                speak.assert_called_once()
+                cached = server.message(server.Message(chat_id='teste-local',message_id='audio-1',audio_base64='teste'))
+                self.assertEqual(cached,result)
+                speak.assert_called_once()
+
+if __name__ == '__main__':
+    unittest.main()

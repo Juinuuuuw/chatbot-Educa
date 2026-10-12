@@ -1,6 +1,20 @@
-# Chatbot Educa
+# Lia — assistente virtual da EdUCA
 
 Protótipo de atendimento para a EdUCA/UERN Natal pelo WhatsApp Web. Combina regras para perguntas frequentes, recuperação lexical BM25 de documentos oficiais e Phi-4 Mini executada pelo Ollama. A extensão para Brave/Chromium responde a mensagens novas na conversa ativada pelo usuário.
+
+## Atendimento da Lia
+
+Lia é um nome curto, remete a “ler” e soa muito bem em voz sintetizada. Uma saudação simples por texto apresenta um menu com dez opções: cursos, inscrição, participação, gratuidade, horários, vagas, local, documentos, certificado e divulgação de novas turmas. A seleção numérica recebe uma resposta estática. Perguntas completas são respondidas diretamente, sem obrigar o usuário a passar pelo menu.
+
+Mensagens de áudio são transcritas e respondidas em áudio, sem apresentar o menu, inclusive quando contêm apenas uma saudação. Perguntas gerais reconhecidas usam as respostas conferidas; questões mais específicas podem consultar o RAG e a Phi-4 Mini. Perguntas combinadas preservam os assuntos identificados.
+
+Questões que dependem de decisão da equipe, informações internas ou atendimento individualizado recebem orientação para procurar a EdUCA. A Lia não confirma vagas atuais, não decide exceções e não promete certificado sem fonte. Um pedido explícito de atendente pausa o atendimento automático, sem notificação automática à equipe.
+
+Para conferir as regras sem iniciar a API nem enviar mensagens ao WhatsApp:
+
+```powershell
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+```
 
 ## Tecnologias
 

@@ -1,4 +1,6 @@
-# Educa — protótipo local
+# Lia — assistente virtual da EdUCA
+
+Desde a versão 0.2.0, saudações simples por texto recebem um menu com dez dúvidas gerais e respostas estáticas. Perguntas completas são respondidas diretamente. Áudios recebem respostas faladas, sem menu. A Lia orienta a procura da equipe em questões individuais, decisões, informações internas e fatos sem confirmação oficial. Seu nome foi escolhido por ser curto, remeter a “ler” e soar muito bem em voz sintetizada.
 
 API com regras, RAG por busca lexical BM25, Phi-4 Mini, transcrição local Whisper small e voz feminina Microsoft Francisca via edge-tts. O RAG não usa embeddings e não foi treinado com conversas pessoais. A tabela do edital foi conferida visualmente e transcrita em 20 registros de turmas, totalizando 431 vagas originalmente previstas. Perguntas sobre turmas usam esses registros, para evitar mistura com notícias de anos anteriores.
 

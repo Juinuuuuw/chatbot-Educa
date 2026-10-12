@@ -4,6 +4,8 @@ import requests
 from fastapi import FastAPI, HTTPException, Depends, Header
 from pydantic import BaseModel, Field
 from rank_bm25 import BM25Okapi
+from contextlib import closing
+from lia import MENU, TEAM, greeting as lia_greeting, menu_choice, restricted, in_scope, topics_for, static_answer, fully_covered
 
 ROOT=pathlib.Path(__file__).resolve().parent
 DATA=ROOT/'data'; DATA.mkdir(exist_ok=True)
@@ -23,7 +25,7 @@ index=BM25Okapi([tokens(c['title']+' '+c['text']) for c in chunks])
 lock=threading.Lock()
 voice=None; whisper=None; kokoro_voice=None; supertonic_voice=None
 DB=DATA/'runtime.sqlite3'
-with sqlite3.connect(DB) as db:
+with closing(sqlite3.connect(DB)) as db, db:
     db.execute('CREATE TABLE IF NOT EXISTS responses (key TEXT PRIMARY KEY, response TEXT, created REAL)')
     db.execute('DELETE FROM responses WHERE created < ?', (time.time()-86400,))
     db.execute('CREATE TABLE IF NOT EXISTS conversations (chat TEXT, message_key TEXT PRIMARY KEY, question TEXT, answer TEXT, created REAL)')
@@ -32,7 +34,7 @@ with sqlite3.connect(DB) as db:
 def auth(x_educa_token: str=Header(default='')):
     if not secrets.compare_digest(x_educa_token,config['token']): raise HTTPException(401,'Acesso local não autorizado')
 
-app=FastAPI(title='Educa — protótipo local',dependencies=[Depends(auth)])
+app=FastAPI(title='Lia — assistente virtual da EdUCA',dependencies=[Depends(auth)])
 
 class Message(BaseModel):
     chat_id:str=Field(min_length=1,max_length=150)
@@ -148,25 +150,47 @@ def resolve_followup(q,history):
     if not re.search(r'horario|\bdia\b|\bdias\b|\bidade\b|\baulas\b|\bque horas\b|\bturma\b',n): return q
     for previous in reversed(history):
         text=norm(previous['question']+' '+previous['answer'])
-        if 'teatro' in text and 'maturidade' in text:
+        if 'constam:' in norm(previous['answer']): return q
+        if 'teatro' in text and 'maturidade' in text and not re.search(r'ballet|juvenil|infantil|adulto|musculacao|danca',text):
             return q.rstrip(' ?!.')+' do Teatro na Maturidade?'
-        matches=[c['course'] for c in courses if norm(c['course']) in text]
+        matches=[c['course'] for c in courses if re.search(r'(?<!\w)'+re.escape(norm(c['course']))+r'(?!\w)',text)]
         if len(matches)==1: return q.rstrip(' ?!.')+' de '+matches[0]+'?'
     return q
 
-def answer(q,history=None):
-    response=_answer(q,history)
+def answer(q,history=None,is_audio=False):
+    response=_answer(q,history,is_audio)
     greeting=re.match(r'^\s*(bom dia|boa tarde|boa noite)\b',norm(q))
     if greeting and not norm(response['text']).startswith(greeting[1]):
         response['text']=greeting[1].capitalize()+'!\n\n'+response['text']
     return response
 
-def _answer(q,history=None):
+def _answer(q,history=None,is_audio=False):
     history=history or []
+    salutation=lia_greeting(q)
+    if salutation or norm(q).strip(' !?.') in ['menu','inicio']:
+        text=(salutation or 'Oi')+'! '+('Sou a Lia, assistente virtual da EdUCA. Como posso ajudar você?' if is_audio else MENU)
+        return {'text':text,'mode':'saudacao_audio' if is_audio else 'menu','sources':[],'handoff':False}
+    choice=menu_choice(q)
+    if choice:
+        return {'text':static_answer(choice,courses),'mode':'faq','sources':[] if choice==9 else [{'title':'Edital 019/2026','url':'uern-educa-0192026edital.pdf','date':'2026-07-23'}],'handoff':False}
     if norm(q).strip(' !?.') in ['sim','sim quero','pode pausar'] and history and 'posso pausar minhas respostas' in history[-1]['answer']:
         q='Quero um atendente'
     q=resolve_followup(q,history)
     n=question_norm(q)
+    if re.search(r'\b(atendente|humano|pessoa da equipe)\b',n):
+        return {'text':'Claro! Vou pausar minhas respostas. Para continuar o atendimento, procure a equipe da EdUCA.','mode':'regra','sources':[],'handoff':True}
+    if restricted(q):
+        return {'text':TEAM,'mode':'equipe','sources':[],'handoff':False}
+    if re.search(r'\b(seu nome|quem e voce|quem e (?:a )?lia|voce se chama|como se chama)\b',n):
+        return {'text':'Sou a Lia, assistente virtual da EdUCA! Posso ajudar com informações sobre cursos e atividades.','mode':'identidade','sources':[],'handoff':False}
+    faq_topics=topics_for(q)
+    eligible=theater_age(q)
+    # Idade e turma específicas usam os registros conferidos, não uma resposta geral.
+    if faq_topics and not eligible and fully_covered(q):
+        responses=[static_answer(t,courses,course_schedule(q) if t==5 else None) for t in faq_topics]
+        return {'text':'\n\n'.join(responses),'mode':'faq','sources':[] if faq_topics==[9] else [{'title':'Edital 019/2026','url':'uern-educa-0192026edital.pdf','date':'2026-07-23'}],'handoff':False}
+    if not in_scope(q):
+        return {'text':'Posso ajudar com informações sobre os cursos e atividades da EdUCA. Sobre qual atividade você gostaria de conversar?','mode':'fora_escopo','sources':[],'handoff':False}
     if re.search(r'horario|\bdias?\b|que horas',n) and not re.search(r'teatro|musculacao|ballet|danca|praticas corporais|informatica|inscri|matricul|prazo',n):
         return {'text':'De qual curso ou turma você quer saber o dia e o horário?','mode':'esclarecer_turma','sources':[],'handoff':False}
     fixed,kind=rule(q)
@@ -174,11 +198,16 @@ def _answer(q,history=None):
         sources=[] if kind in [None,'handoff'] else [{'title':'Edital 019/2026','url':'uern-educa-0192026edital.pdf','date':'2026-07-23'}]
         return {'text':fixed,'mode':'regra','sources':sources,'handoff':kind=='handoff'}
     hits=retrieve(q)
-    if not hits and not fixed: return {'text':'Essa informação eu ainda não tenho por aqui. Para te orientar direitinho, preciso confirmar com a equipe.','mode':'sem_fonte','sources':[],'handoff':False}
+    if not hits and not fixed: return {'text':'Não encontrei essa informação nas fontes oficiais da minha base. Procure a equipe da EdUCA para confirmar.','mode':'sem_fonte','sources':[],'handoff':False}
     today=datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=-3))).date().isoformat()
     context='\n\n'.join(f"FONTE {i+1}: {c['title']} — {c['date']}, página {c.get('page','site')}\n{c['text']}" for i,c in enumerate(hits))
     if fixed: context+='\n\nFATOS CONFERIDOS DO EDITAL:\n'+fixed
-    system=f'''Você é o assistente virtual de teste da EdUCA/UERN em Natal. Hoje é {today}.
+    if faq_topics:
+        context+='\n\nRESPOSTAS CONFERIDAS E LIMITES DE CONFIRMAÇÃO:\n'+'\n'.join(static_answer(t,courses,course_schedule(q) if t==5 else None) for t in faq_topics)
+    system=f'''Você é Lia, a assistente virtual da EdUCA/UERN em Natal. Hoje é {today}.
+Seu atendimento se limita a cursos e atividades, inscrição, público participante, gratuidade, dias e horários, vagas, locais, documentos, certificado e divulgação de novas turmas e projetos da EdUCA.
+Questões que exigem análise ou decisão da equipe, informações internas, fatos não confirmados oficialmente e atendimento individualizado devem ser orientadas à equipe da EdUCA. Nunca decida exceções, consulte cadastros ou prometa ações. Quando a fonte não confirmar certificado, oriente a confirmação pela equipe.
+Não mostre menu para perguntas completas nem para mensagens de áudio. Responda diretamente ao pedido.
 Responda em português brasileiro, de modo respeitoso e simples, em até 120 palavras.
 Sua personalidade é acolhedora, atenciosa e tranquila, como alguém da equipe ajudando numa conversa de WhatsApp.
 Use frases curtas e palavras comuns. Pode usar uma expressão natural como "Claro!" ou "Vamos lá" quando combinar com a pergunta.
@@ -324,7 +353,7 @@ def message(m:Message):
     key=hashlib.sha256((m.chat_id+'|'+m.message_id).encode()).hexdigest()
     chat_key=hashlib.sha256(m.chat_id.encode()).hexdigest()
     with lock:
-        with sqlite3.connect(DB) as db:
+        with closing(sqlite3.connect(DB)) as db, db:
             db.execute('DELETE FROM responses WHERE created < ?', (time.time()-86400,))
             db.execute('DELETE FROM conversations WHERE created < ?', (time.time()-86400,))
             cached=db.execute('SELECT response FROM responses WHERE key=?',(key,)).fetchone()
@@ -335,11 +364,11 @@ def message(m:Message):
             q=transcribe(m.audio_base64) if m.audio_base64 else m.text.strip()
             if not q:
                 out={'text':'Não consegui entender o áudio. Pode repetir mais perto do microfone, por favor?','mode':'repetir_audio','sources':[],'handoff':False}
-            else: out=answer(q,history)
+            else: out=answer(q,history,is_audio=bool(m.audio_base64))
             out['transcript']=q if m.audio_base64 else ''
             if m.reply_audio or m.audio_base64:
                 out['audio_base64']=speak(out['text']); out['audio_mime']='audio/ogg'
-            with sqlite3.connect(DB) as db:
+            with closing(sqlite3.connect(DB)) as db, db:
                 db.execute('INSERT OR REPLACE INTO responses VALUES (?,?,?)',(key,json.dumps(out,ensure_ascii=False),time.time()))
                 if q:
                     db.execute('INSERT INTO conversations VALUES (?,?,?,?,?)',(chat_key,key,q,out['text'],time.time()))

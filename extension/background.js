@@ -82,7 +82,7 @@ async function processTick(job) {
       if(m.t<s.started || !['chat','ptt','audio'].includes(m.type)) {await remember(m.id);continue;}
       if(m.fromMe && !s.self) {await remember(m.id);continue;}
       if(!m.fromMe && s.self) {await remember(m.id);continue;}
-      if(s.self && m.body.startsWith('[Educa · teste]\n')) {await remember(m.id);continue;}
+      if(s.self && (m.body.startsWith('[Lia · teste]\n') || m.body.startsWith('[Educa · teste]\n'))) {await remember(m.id);continue;}
       await chrome.storage.local.set({lastStatus:'Preparando resposta…'});
       const audio=['ptt','audio'].includes(m.type);
       const body={chat_id:s.jid,message_id:m.id,text:m.body,reply_audio:audio};
@@ -129,7 +129,7 @@ async function processTick(job) {
         let result;
         const options={messageId:outgoingKey,waitForAck:false};
         if(r.audio_base64) result=await WPP.chat.sendFileMessage(jid,`data:${r.audio_mime};base64,${r.audio_base64}`,{...options,type:'audio',isPtt:true,filename:r.audio_mime.startsWith('audio/ogg')?'educa.ogg':'educa.wav',mimetype:r.audio_mime});
-        else result=await WPP.chat.sendTextMessage(jid,'[Educa · teste]\n'+r.text,{...options,detectMentioned:false});
+        else result=await WPP.chat.sendTextMessage(jid,'[Lia · teste]\n'+r.text,{...options,detectMentioned:false});
         window.__educaOutgoingKeys.delete(preparedId);
         const key=result?.id || result?.message?.id;
         return {id:key?._serialized || (key?String(key):null) || preparedId};
