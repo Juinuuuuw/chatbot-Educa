@@ -6,7 +6,9 @@ API com regras, RAG por busca lexical BM25, Phi-4 Mini, transcrição local Whis
 
 ## Personalidade e voz
 
-A voz padrão agora é Chatterbox PT-BR, gerada no computador com a referência feminina da demonstração oficial. A API usa um ambiente separado para a voz e descarrega a Phi da GPU antes da síntese. Ao concluir, o processo de voz libera sua memória. Novas respostas podem levar cerca de um minuto nesta máquina; áudios de respostas iguais são reutilizados por até 24 horas, com limite de 128 arquivos em `data/voice-cache`. Consulte o README para instalação em outro computador.
+Na versão 0.4.0, o perfil recebeu ajustes de referência, presença e volume. Há seis áudios de espera pré-gravados: um deles é enviado enquanto uma resposta falada mais lenta é preparada. Respostas rápidas não recebem aviso; o aviso não consome a pergunta e não se repete para a mesma sequência.
+
+A voz padrão agora é Chatterbox PT-BR, gerada no computador com uma referência feminina sintética gerada anteriormente no protótipo. A API usa um ambiente separado para a voz e descarrega a Phi da GPU antes da síntese. Ao concluir, o processo de voz libera sua memória. Novas respostas podem levar cerca de um minuto nesta máquina; áudios de respostas iguais são reutilizados por até 24 horas, com limite de 128 arquivos em `data/voice-cache`. Consulte o README para instalação em outro computador.
 
 As respostas usam um tom acolhedor, frases simples e, quando combinar com a conversa, um emoji discreto. Telefone e e-mail aparecem quando solicitados. As informações sobre prazos encerrados e a falta de confirmação de vagas atuais continuam sendo respeitadas. Esse tom vale para as regras e para o Phi-4 Mini.
 

@@ -31,8 +31,8 @@ def main():
         from configurar import main as configure
         configure()
     config=json.loads(path.read_text(encoding='utf-8'))
-    config.update(tts_engine='chatterbox',tts_voice='pt-br-female',chatterbox_python=str(python),
-                  chatterbox_device='cuda',chatterbox_exaggeration=0.5,chatterbox_cfg_weight=0.35)
+    config.update(tts_engine='chatterbox',tts_voice='pt-br-female-clear',chatterbox_python=str(python),
+                  chatterbox_device='cuda',chatterbox_exaggeration=0.55,chatterbox_cfg_weight=0.5)
     path.write_text(json.dumps(config,ensure_ascii=False,indent=2),encoding='utf-8')
     print('Voz local configurada. Reinicie a API depois de verificar uma amostra.')
 

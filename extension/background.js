@@ -88,6 +88,55 @@ function tick() {
   job.promise=processTick(job).finally(()=>{if(activeJob===job) activeJob=null;});
   return job.promise;
 }
+async function sendTracked(s,response,beforeSend=async()=>{}) {
+  const prepared=await page(s.tabId,'prepare',[s.jid]);
+  if(!prepared?.id)throw new Error('O WhatsApp não retornou a identificação preparada.');
+  await remember(prepared.id);
+  if(prepared.token) {
+    const prev=await chrome.storage.local.get('ownTokens');
+    await chrome.storage.local.set({ownTokens:[...new Set([...(prev.ownTokens||[]),prepared.token])].slice(-2000)});
+  }
+  const current=await chrome.storage.local.get(['enabled','run']);
+  if(!current.enabled || current.run!==s.run)return null;
+  await beforeSend();
+  const finalGuard=await chrome.storage.local.get(['enabled','run']);
+  if(!finalGuard.enabled || finalGuard.run!==s.run)return null;
+  const sent=await page(s.tabId,'send',[s.jid,response,prepared.id,s.self]);
+  if(sent?.id)await remember(sent.id);
+  else throw new Error('Não foi possível confirmar o resultado do envio.');
+  return sent;
+}
+async function responseWithWaiting(s,body,job) {
+  let finished=false;
+  const result=api('/message',body,job.controller.signal).then(response=>({response}),error=>({error})).then(value=>{finished=true;return value;});
+  let timer;
+  if(body.reply_audio) {
+    const first=await Promise.race([result,new Promise(resolve=>{timer=setTimeout(()=>resolve(null),1500);})]);
+    clearTimeout(timer);
+    if(first) {if(first.error)throw first.error;return first.response;}
+    const state=await chrome.storage.local.get(['enabled','run','waitingBatches','lastWaitingAudio']);
+    if(state.enabled && state.run===s.run && !state.waitingBatches?.includes(body.message_id)) {
+      let clip;
+      try {clip=await api('/waiting-audio?exclude='+encodeURIComponent(state.lastWaitingAudio || ''),undefined,job.controller.signal);}
+      catch {
+        const active=await chrome.storage.local.get(['enabled','run']);
+        if(active.enabled && active.run===s.run)await chrome.storage.local.set({lastStatus:'Preparando resposta. O áudio de espera não está disponível.'});
+      }
+      if(clip && !finished) {
+        await chrome.storage.local.set({lastStatus:'Enviando um áudio curto enquanto preparo a resposta…'});
+        try {
+          await sendTracked(s,clip,async()=>{
+            const previous=await chrome.storage.local.get('waitingBatches');
+            await chrome.storage.local.set({waitingBatches:[...new Set([...(previous.waitingBatches||[]),body.message_id])].slice(-2000),lastWaitingAudio:clip.id});
+          });
+        } catch(error) {const failure=new Error(errorText(error));failure.liaStage='Enviar áudio de espera';throw failure;}
+      }
+    }
+  }
+  const value=await result;
+  if(value.error)throw value.error;
+  return value.response;
+}
 async function processTick(job) {
   let stage='Verificar atendimento';
   try {
@@ -142,27 +191,17 @@ async function processTick(job) {
       body.parts.push(part);
     }
       stage=audio?'Transcrever e gerar resposta falada':'Consultar a API da Lia';
-      const response=await api('/message',body,job.controller.signal);
+      const response=await responseWithWaiting(s,body,job);
       const now=await chrome.storage.local.get(['enabled','run']);
       if(!now.enabled || now.run!==s.run) return;
-      stage='Preparar envio no WhatsApp';
-      const prepared=await page(s.tabId,'prepare',[s.jid]);
-      if(!prepared?.id) throw new Error('O WhatsApp não retornou a identificação preparada.');
-      await remember(prepared.id);
-      if(prepared.token) {
-        const prev=await chrome.storage.local.get('ownTokens');
-        await chrome.storage.local.set({ownTokens:[...new Set([...(prev.ownTokens||[]),prepared.token])].slice(-2000)});
-      }
-      const beforeSend=await chrome.storage.local.get(['enabled','run']);
-      if(!beforeSend.enabled || beforeSend.run!==s.run) return;
-      // Marcar antes do envio evita reenvio automático se a confirmação do WhatsApp se perder.
-      await rememberMany(ids);
-      await chrome.storage.local.set({pendingBatch:null});
       await chrome.storage.local.set({lastStatus:response.audio_base64?'Enviando resposta em áudio…':'Enviando resposta em texto…'});
       stage=response.audio_base64?'Enviar resposta em áudio':'Enviar resposta em texto';
-      const sent=await page(s.tabId,'send',[s.jid,response,prepared.id,s.self]);
-      if(sent?.id) await remember(sent.id);
-      else throw new Error('Não foi possível confirmar o resultado do envio.');
+      const sent=await sendTracked(s,response,async()=>{
+        // O aviso de espera não consome a pergunta; só o envio da resposta final faz isso.
+        await rememberMany(ids);
+        await chrome.storage.local.set({pendingBatch:null});
+      });
+      if(!sent)return;
       const afterSend=await chrome.storage.local.get(['enabled','run']);
       if(!afterSend.enabled || afterSend.run!==s.run) return;
       if(response.handoff) {await pause('Atendimento humano solicitado. Bot pausado nesta conversa.');return;}
@@ -171,6 +210,7 @@ async function processTick(job) {
     const current=await chrome.storage.local.get(['enabled','run']);
     if(current.enabled && current.run===job.run) {
       const detail=errorText(e);
+      stage=e.liaStage || stage;
       await chrome.storage.local.set({lastError:{stage,detail,at:new Date().toISOString()}});
       await pause(`Erro ao ${stage.toLowerCase()}: ${detail}\nReative após conferir a conversa. Um envio incerto não será repetido automaticamente.`);
     }

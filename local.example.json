@@ -1,8 +1,8 @@
 {
   "model": "phi4-mini:latest",
   "tts_engine": "chatterbox",
-  "tts_voice": "pt-br-female",
+  "tts_voice": "pt-br-female-clear",
   "chatterbox_device": "cuda",
-  "chatterbox_exaggeration": 0.5,
-  "chatterbox_cfg_weight": 0.35
+  "chatterbox_exaggeration": 0.55,
+  "chatterbox_cfg_weight": 0.5
 }

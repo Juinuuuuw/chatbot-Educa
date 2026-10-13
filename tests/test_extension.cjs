@@ -6,23 +6,32 @@ const vm=require('node:vm');
 const {webcrypto}=require('node:crypto');
 const root=path.join(__dirname,'..','extension');
 
-function harness({self=false,fromMe=false,errorAt=null,error=null,httpStatus=200,voiceUnavailable=false}={}) {
+function harness({self=false,fromMe=false,errorAt=null,error=null,httpStatus=200,voiceUnavailable=false,deferResponse=false,waitingUnavailable=false}={}) {
   const state={enabled:true,run:'sessao-teste',tabId:1,jid:self?'self-test@c.us':'friend-test@lid',self,started:0,seen:[],ownTokens:[]};
-  const sends=[];const bodies=[];let requests=0;let clock=Date.now();let nextTimer=0;
+  const sends=[];const bodies=[];let requests=0;let clock=Date.now();let nextTimer=0;let nextMessage=0;let releaseResponse;let waitingRequests=0;
+  const timers=new Map();
   let incoming=[{id:{_serialized:'incoming-test',id:'incoming-token',fromMe},body:'Oi',type:'chat',t:clock/1000}];
   class ClockDate extends Date {constructor(...args){super(...(args.length?args:[clock]));}static now(){return clock;}}
   const fail=stage=>{if(errorAt===stage) throw error;};
   const wpp={isReady:true,chat:{
     getMessages:async()=>{fail('messages');return incoming;},
-    generateMessageID:async()=>{fail('prepare');return {_serialized:'outgoing-test',id:'outgoing-token'};},
+    generateMessageID:async()=>{fail('prepare');nextMessage++;return {_serialized:'outgoing-test-'+nextMessage,id:'outgoing-token-'+nextMessage};},
     sendTextMessage:async(jid,text,options)=>{fail('send');sends.push({jid,text,options});return {id:{_serialized:'outgoing-test'}};},
     downloadMedia:async()=>({size:10}),
-    sendFileMessage:async(jid,data,options)=>{sends.push({jid,data,options});return {id:{_serialized:'outgoing-test'}};},
+    sendFileMessage:async(jid,data,options)=>{fail('send');sends.push({jid,data,options});return {id:{_serialized:options.messageId._serialized}};},
   }};
   const browserPage=vm.createContext({WPP:wpp,window:{WPP:wpp},Map,FileReader:class{readAsDataURL(){this.result='data:audio/ogg;base64,YXVkaW8=';this.onload();}}});
   let context;
-  const sandbox={AbortController,AbortSignal,crypto:webcrypto,TextEncoder,Date:ClockDate,setTimeout:()=>++nextTimer,clearTimeout:()=>{},console,
-    fetch:async(url,options)=>{requests++;const body=JSON.parse(options.body);bodies.push(body);return {ok:httpStatus===200,status:httpStatus,json:async()=>httpStatus===200?{text:'Sou a Lia',mode:'menu',handoff:false,...(body.reply_audio?(voiceUnavailable?{audio_warning:'O serviço de voz está indisponível. A resposta foi enviada por texto.'}:{audio_base64:'resposta-falsa',audio_mime:'audio/ogg'}):{})}:{detail:[{loc:['body','text'],msg:'Campo inválido'}]}};},
+  const sandbox={AbortController,AbortSignal,crypto:webcrypto,TextEncoder,Date:ClockDate,setTimeout:(callback,delay)=>{const id=++nextTimer;timers.set(id,{callback,at:clock+delay});return id;},clearTimeout:id=>timers.delete(id),console,
+    fetch:async(url,options)=>{
+      if(url.includes('/waiting-audio')) {
+        waitingRequests++;if(waitingUnavailable)throw new Error('Aviso indisponível');
+        return {ok:true,json:async()=>({id:'wait-01',text:'Um momento',audio_base64:'aviso-falso',audio_mime:'audio/ogg'})};
+      }
+      requests++;const body=JSON.parse(options.body);bodies.push(body);
+      if(deferResponse)await new Promise(resolve=>{releaseResponse=resolve;});
+      return {ok:httpStatus===200,status:httpStatus,json:async()=>httpStatus===200?{text:'Sou a Lia',mode:'menu',handoff:false,...(body.reply_audio?(voiceUnavailable?{audio_warning:'O serviço de voz está indisponível. A resposta foi enviada por texto.'}:{audio_base64:'resposta-falsa',audio_mime:'audio/ogg'}):{})}:{detail:[{loc:['body','text'],msg:'Campo inválido'}]}};
+    },
     chrome:{
       storage:{local:{get:async keys=>keys===null?{...state}:Object.fromEntries((Array.isArray(keys)?keys:[keys]).map(key=>[key,state[key]])),set:async values=>Object.assign(state,values)}},
       tabs:{get:async()=>({url:'https://web.whatsapp.com/'}),query:async()=>[{id:1,url:'https://web.whatsapp.com/'}]},
@@ -40,7 +49,7 @@ function harness({self=false,fromMe=false,errorAt=null,error=null,httpStatus=200
   context=vm.createContext(sandbox);
   vm.runInContext(fs.readFileSync(path.join(root,'background.js'),'utf8'),context);
   const tick=()=>vm.runInContext('tick()',context);
-  return {state,sends,bodies,requests:()=>requests,tick,advance:ms=>{clock+=ms;},setMessages:msgs=>{incoming=msgs;},pause:()=>vm.runInContext('pause()',context),
+  return {state,sends,bodies,requests:()=>requests,waitingRequests:()=>waitingRequests,tick,advance:ms=>{clock+=ms;},fireTimers:()=>{for(const [id,t] of timers)if(t.at<=clock){timers.delete(id);t.callback();}},releaseResponse:()=>releaseResponse(),setMessages:msgs=>{incoming=msgs;},pause:()=>vm.runInContext('pause()',context),
     flush:async()=>{await tick();clock+=5000;await tick();}};
 }
 
@@ -131,5 +140,44 @@ function harness({self=false,fromMe=false,errorAt=null,error=null,httpStatus=200
   await paused.tick();await paused.pause();paused.advance(5000);await paused.tick();
   assert.equal(paused.requests(),0,'Pausar deve cancelar o grupo pendente');
   assert.equal(paused.state.pendingBatch,null);
+  const microtasks=async()=>{for(let i=0;i<70;i++)await Promise.resolve();};
+  const slow=harness({deferResponse:true});
+  slow.setMessages([{id:{_serialized:'slow-voice'},type:'ptt',t:1}]);
+  await slow.tick();slow.advance(5000);const processing=slow.tick();await microtasks();
+  assert.equal(slow.sends.length,0);
+  slow.advance(1500);slow.fireTimers();await microtasks();
+  assert.equal(slow.sends.length,1,'Deve enviar o aviso enquanto a resposta está sendo gerada');
+  assert.ok(slow.sends[0].data.includes('aviso-falso'));
+  assert.ok(!slow.state.seen.includes('slow-voice'),'Aviso não deve consumir a pergunta');
+  slow.releaseResponse();await processing;
+  assert.equal(slow.sends.length,2,'Aviso e resposta final devem ser enviados uma vez cada');
+  assert.ok(slow.sends[1].data.includes('resposta-falsa'));
+  assert.ok(slow.state.seen.includes('slow-voice'));
+  await slow.tick();assert.equal(slow.sends.length,2);
+  assert.equal(voices.waitingRequests(),0,'Resposta rápida não precisa de aviso');
+
+  const cancelled=harness({deferResponse:true});
+  cancelled.setMessages([{id:{_serialized:'cancelled-voice'},type:'ptt',t:1}]);
+  await cancelled.tick();cancelled.advance(5000);const pending=cancelled.tick();await microtasks();
+  await cancelled.pause();cancelled.advance(1500);cancelled.fireTimers();await microtasks();
+  cancelled.releaseResponse();await pending;
+  assert.equal(cancelled.sends.length,0,'Pausa deve impedir aviso e resposta');
+
+  const noClip=harness({deferResponse:true,waitingUnavailable:true});
+  noClip.setMessages([{id:{_serialized:'no-clip'},type:'ptt',t:1}]);
+  await noClip.tick();noClip.advance(5000);const noClipJob=noClip.tick();await microtasks();
+  noClip.advance(1500);noClip.fireTimers();await microtasks();
+  noClip.releaseResponse();await noClipJob;
+  assert.equal(noClip.sends.length,1,'Falha ao buscar aviso não deve impedir a resposta final');
+  assert.equal(noClip.state.enabled,true);
+
+  const waited=harness({deferResponse:true});
+  waited.setMessages([{id:{_serialized:'already-waited'},type:'ptt',t:1}]);
+  waited.state.waitingBatches=['already-waited'];
+  await waited.tick();waited.advance(5000);const waitedJob=waited.tick();await microtasks();
+  waited.advance(1500);waited.fireTimers();await microtasks();
+  waited.releaseResponse();await waitedJob;
+  assert.equal(waited.waitingRequests(),0,'Retomar processamento não deve repetir aviso já enviado');
+  assert.equal(waited.sends.length,1);
   console.log('OK: chat de terceiro, modo pessoal, filtros, duplicação e falhas nas etapas de leitura, preparação, envio e API. Nenhuma mensagem real foi enviada.');
 })().catch(error=>{console.error(error);process.exitCode=1;});

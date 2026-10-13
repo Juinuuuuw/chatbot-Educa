@@ -320,8 +320,8 @@ def synthesize_wav(text, selected_voice=None):
         with tempfile.TemporaryDirectory(prefix='lia-voz-') as folder:
             output=pathlib.Path(folder)/'response.wav'
             params={'text':speech,'device':config.get('chatterbox_device','cuda'),
-                    'exaggeration':config.get('chatterbox_exaggeration',0.5),
-                    'cfg_weight':config.get('chatterbox_cfg_weight',0.35)}
+                    'exaggeration':config.get('chatterbox_exaggeration',0.55),
+                    'cfg_weight':config.get('chatterbox_cfg_weight',0.5)}
             process=run_voice_process([str(python),str(ROOT/'chatterbox_speak.py'),'--output',str(output)],
                                    input=json.dumps(params,ensure_ascii=False),text=True,encoding='utf-8',
                                    capture_output=True,timeout=300,creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0))
@@ -379,9 +379,11 @@ def speak(text):
     cache=None
     if config.get('tts_engine')=='chatterbox':
         VOICE_CACHE.mkdir(exist_ok=True)
-        reference=ROOT/'models/chatterbox-pt-br/reference-female.wav'
+        reference=ROOT/'assets/lia-reference.wav'
+        if not reference.exists():reference=ROOT/'models/chatterbox-pt-br/reference-female.wav'
         settings={k:config.get(k) for k in ['tts_engine','tts_voice','chatterbox_exaggeration','chatterbox_cfg_weight']}
         settings['reference_mtime']=reference.stat().st_mtime_ns if reference.exists() else 0
+        settings['voice_revision']='presence-v2'
         key=hashlib.sha256((speech_text(text)+json.dumps(settings,sort_keys=True)).encode()).hexdigest()
         cache=VOICE_CACHE/(key+'.ogg')
         files=sorted(VOICE_CACHE.glob('*.ogg'),key=lambda p:p.stat().st_mtime)
@@ -429,6 +431,20 @@ def health():
     engine=config.get('tts_engine','kokoro')
     voice_files={'chatterbox':ROOT/'models/chatterbox-pt-br/t3_pt_br.safetensors','supertonic':ROOT/'models/supertonic-3/onnx/vocoder.onnx','kokoro':ROOT/'models/kokoro/kokoro-v1.0.onnx','piper':ROOT/'models/pt_BR-faber-medium.onnx'}
     return {'ok':True,'supports_batches':True,'model':config['model'],'chunks':len(chunks),'voice':engine=='edge' or voice_files.get(engine,ROOT/'missing-model').exists(),'voice_requires_internet':engine=='edge','tts_engine':engine,'tts_voice':config.get('tts_voice','F2' if engine=='supertonic' else 'pf_dora'),'transcription':(ROOT/'models/whisper-small/model.bin').exists()}
+
+@app.get('/waiting-audio')
+def waiting_audio(exclude:str=''):
+    folder=ROOT/'assets/waiting'
+    manifest=folder/'manifest.json'
+    if not manifest.exists():raise HTTPException(503,'Áudios de espera ainda não foram preparados.')
+    clips=json.loads(manifest.read_text(encoding='utf-8'))
+    available=[c for c in clips if c['id']!=exclude] or clips
+    if not available:raise HTTPException(503,'Nenhum áudio de espera disponível.')
+    clip=secrets.choice(available)
+    filename=pathlib.Path(clip['file']).name
+    if not re.fullmatch(r'waiting-\d{2}\.ogg',filename):raise HTTPException(503,'Arquivo de espera inválido.')
+    return {'id':clip['id'],'text':clip['text'],'audio_mime':'audio/ogg',
+            'audio_base64':base64.b64encode((folder/filename).read_bytes()).decode()}
 
 def attach_audio(out):
     try:

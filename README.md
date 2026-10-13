@@ -27,7 +27,7 @@ Para conferir as regras sem iniciar a API nem enviar mensagens ao WhatsApp:
 - Ollama e `phi4-mini:latest`: geração de respostas.
 - BM25: recuperação do edital e de notícias; sem embeddings.
 - faster-whisper small: transcrição local na CPU.
-- Chatterbox PT-BR: síntese local com a referência feminina da demonstração oficial.
+- Chatterbox PT-BR: síntese local com uma referência feminina sintética do protótipo.
 - SQLite: histórico curto e controle de repetição.
 
 Não exige chave paga de LLM ou de síntese. Após a instalação e os downloads, a voz padrão é gerada no computador, sem enviar o texto à Microsoft. A integração com WhatsApp Web é não oficial.
@@ -45,7 +45,9 @@ ollama pull phi4-mini:latest
 .\.venv\Scripts\python.exe setup_chatterbox.py
 ```
 
-Os últimos passos baixam modelos de áudio e conferem a integridade da biblioteca WA-JS. Chatterbox usa um ambiente Python separado em `.venv-chatterbox`, PyTorch com CUDA e pesos específicos para português brasileiro, com revisões fixadas. Os arquivos ocupam vários GB e não são incluídos no Git. O código do carregador específico é preservado em `vendor/chatterbox`, com licença e indicação da origem. A referência feminina é a fornecida pela demonstração oficial; não é a voz de um integrante da equipe.
+Os últimos passos baixam modelos de áudio e conferem a integridade da biblioteca WA-JS. Chatterbox usa um ambiente Python separado em `.venv-chatterbox`, PyTorch com CUDA e pesos específicos para português brasileiro, com revisões fixadas. Os arquivos ocupam vários GB e não são incluídos no Git. O código do carregador específico é preservado em `vendor/chatterbox`, com licença e indicação da origem. A referência atual em `assets/lia-reference.wav` foi extraída de uma amostra sintética gerada anteriormente no protótipo. Não é a voz de um integrante da equipe.
+
+A versão 0.4.0 usa outra referência e orientação de voz, com leve ajuste de presença, corte de graves e volume consistente. A síntese continua local. Os seis áudios em `assets/waiting` foram pré-gerados com esse perfil. Quando uma resposta falada demora mais de 1,5 segundo após a consulta à API começar, a extensão envia um único aviso de espera e depois a resposta final. Respostas rápidas não recebem aviso. O aviso não marca a pergunta como respondida e seus identificadores são filtrados para não provocar um novo atendimento no modo de teste para você. Pausar impede novos envios.
 
 A voz usa a GPU em uma etapa separada da Phi: a API descarrega a Phi do Ollama antes da síntese, e o processo de voz libera sua memória ao concluir. A geração pode acrescentar espera. Piper, Kokoro, Supertonic e Microsoft permanecem como alternativas opcionais no código.
 

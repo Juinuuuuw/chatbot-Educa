@@ -63,4 +63,14 @@ class ChatterboxIntegrationTest(unittest.TestCase):
             if os.name=='nt':kill.assert_called_once_with(['taskkill','/PID','987654','/T','/F'],stdout=server.subprocess.DEVNULL,stderr=server.subprocess.DEVNULL)
             else:proc.kill.assert_called_once()
 
+    def test_waiting_audio_is_prerecorded_and_available_while_processing(self):
+        with patch.object(server,'synthesize_wav') as synthesize:
+            with server.lock:
+                first=server.waiting_audio()
+                second=server.waiting_audio(exclude=first['id'])
+            self.assertNotEqual(first['id'],second['id'])
+            self.assertTrue(base64.b64decode(first['audio_base64']).startswith(b'OggS'))
+            self.assertEqual(first['audio_mime'],'audio/ogg')
+            synthesize.assert_not_called()
+
 if __name__=='__main__':unittest.main()

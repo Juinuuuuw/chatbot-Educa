@@ -8,7 +8,9 @@ __pycache__/
 /data/runtime.sqlite3*
 /data/voice-cache/
 *.ogg
+!assets/waiting/*.ogg
 *.wav
+!assets/lia-reference.wav
 *.mp3
 /validacao-*.json
 /amostras-*.json
