@@ -13,7 +13,7 @@ A versão 0.6.0 da extensão descobre conversas individuais existentes e contato
 
 Para ver somente o visual: `http://127.0.0.1:8766/panel/#demo=1`. Os contatos e as respostas dessa demonstração são fictícios; suas ações não enviam mensagens.
 
-Use **Shift + E** para entrar ou sair da demonstração. O atalho não é acionado enquanto você digita em um campo ou está com um diálogo aberto. O botão circular no canto superior direito abre a acessibilidade, incluindo o modo escuro. A lateral mantém os filtros das filas, **Concluídas** e **Relatórios**, sem os antigos cartões da assistente ou botões de demonstração. A logo muda para uma versão transparente com letras claras no tema escuro.
+Use **Shift + E** para entrar ou sair da demonstração. O atalho não é acionado enquanto você digita em um campo ou está com um diálogo aberto. O botão Acessibilidade na parte inferior da lateral abre um menu que sobe, incluindo o modo escuro. A opção Reduzir movimentos desativa as animações do menu, da abertura e da troca de tema. A lateral mantém os filtros das filas, **Concluídas** e **Relatórios**, sem os antigos cartões da assistente ou botões de demonstração. A logo muda para uma versão transparente com letras claras no tema escuro.
 
 O botão **Pausar conexão do painel** interrompe a coleta e o envio pela extensão. As respostas já preparadas permanecem na fila; antes de retomar, confira as conversas. O teste individual antigo só pode ser ativado com a conexão do painel pausada.
 
@@ -31,7 +31,7 @@ Uma mensagem manual enviada diretamente no WhatsApp também coloca o chat em ate
 
 Identidade visual baseada na logo fornecida: fundos neutros, azul para as ações e laranja discreto para os chamados. Tema claro/escuro, contraste aumentado, texto ampliável, movimento reduzido, navegação por teclado e skeletons de carregamento. Preferências são salvas neste navegador. O sistema respeita a preferência de movimento reduzido do dispositivo.
 
-O painel atualiza a cada três segundos. A extensão verifica mensagens a cada cinco segundos com a aba do WhatsApp aberta; suspensão da aba ou do computador pode aumentar esse intervalo. A gravação pede permissão para usar o microfone e para automaticamente em três minutos. A mensagem só vai para a fila após clicar em enviar.
+A abertura do painel mostra a logo da EdUCA e o estado de carregamento. A conexão fica no rodapé; avisos de acesso aparecem em notificações temporárias, sem divulgar a demonstração. A troca de tema utiliza uma transição de sol e lua que cobre a tela e desaparece. O painel atualiza a cada três segundos. A extensão verifica mensagens a cada cinco segundos com a aba do WhatsApp aberta; suspensão da aba ou do computador pode aumentar esse intervalo. A gravação pede permissão para usar o microfone e para automaticamente em três minutos. A mensagem só vai para a fila após clicar em enviar.
 
 ## Dados e limites do protótipo
 
