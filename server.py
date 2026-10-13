@@ -5,6 +5,7 @@ from fastapi import FastAPI, HTTPException, Depends, Header
 from pydantic import BaseModel, Field
 from rank_bm25 import BM25Okapi
 from contextlib import closing
+from contextvars import ContextVar
 from lia import MENU, MENU_QUERIES, TEAM, greeting as lia_greeting, menu_choice, restricted, in_scope, topics_for, static_answer, fully_covered
 
 ROOT=pathlib.Path(__file__).resolve().parent
@@ -25,6 +26,7 @@ def tokens(s): return [w for w in re.findall(r'[a-z0-9]+',norm(s)) if w not in S
 index=BM25Okapi([tokens(c['title']+' '+c['text']) for c in chunks])
 lock=threading.Lock()
 voice=None; whisper=None; kokoro_voice=None; supertonic_voice=None
+panel_context=ContextVar('panel_context',default=False)
 DB=DATA/'runtime.sqlite3'
 with closing(sqlite3.connect(DB)) as db, db:
     db.execute('CREATE TABLE IF NOT EXISTS responses (key TEXT PRIMARY KEY, response TEXT, created REAL)')
@@ -478,6 +480,8 @@ def message(m:Message):
             if not q:
                 out={'text':'Não consegui entender o áudio. Pode repetir mais perto do microfone, por favor?','mode':'repetir_audio','sources':[],'handoff':False}
             else: out=answer(q,history,is_audio=has_audio)
+            if panel_context.get() and (out.get('handoff') or out.get('mode') in ['equipe','sem_fonte']):
+                out['text']='Vou encaminhar sua conversa para a equipe da EdUCA. Uma pessoa poderá ajudar você por aqui.'
             out['transcript']=transcript
             answer_text=out['text']
             if m.reply_audio or has_audio:
@@ -491,6 +495,16 @@ def message(m:Message):
         except (ValueError,RuntimeError) as e: raise HTTPException(422,str(e))
         except Exception as e: raise HTTPException(503,'Falha no processamento local: '+type(e).__name__)
 
+from panel import create_panel
+def panel_transcribe(encoded):
+    with lock:
+        return transcribe(encoded)
+def panel_generate(payload):
+    context=panel_context.set(True)
+    try: return message(Message(**payload))
+    finally: panel_context.reset(context)
+app.mount('/panel', create_panel(ROOT,config['token'],panel_generate,panel_transcribe))
+
 if __name__=='__main__':
     import uvicorn
-    uvicorn.run(app,host='127.0.0.1',port=8765,access_log=False)
+    uvicorn.run(app,host='127.0.0.1',port=config.get('port',8765),access_log=False)

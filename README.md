@@ -1,5 +1,7 @@
 # Lia — assistente virtual da EdUCA
 
+**Branch do painel de atendimento:** consulte [PAINEL.md](PAINEL.md) para usar as filas da Lia e da equipe, o histórico, as respostas humanas por texto/áudio e as opções de acessibilidade. Neste computador, esta cópia usa a porta 8766. Os detalhes abaixo também descrevem o modo de teste individual anterior; no painel, pedidos de atendente entram efetivamente na fila da equipe.
+
 Protótipo de atendimento para a EdUCA/UERN Natal pelo WhatsApp Web. Combina regras para perguntas frequentes, recuperação lexical BM25 de documentos oficiais e Phi-4 Mini executada pelo Ollama. A extensão para Brave/Chromium responde a mensagens novas na conversa ativada pelo usuário.
 
 ## Atendimento da Lia

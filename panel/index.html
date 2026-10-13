@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><title>Lia · Atendimento EdUCA</title><link rel="stylesheet" href="/panel/assets/style.css"></head>
+<body>
+<a class="skip" href="#conversation">Ir para a conversa</a>
+<div class="app">
+  <aside class="rail" aria-label="Navegação principal">
+    <a class="brand" href="/panel/" aria-label="EdUCA — início"><img src="/panel/assets/educa-logo.png" alt="EdUCA, Escola da UERN. Conhecer, cuidar e conviver."></a>
+    <div class="workspace-label">ESPAÇO DA EQUIPE</div>
+    <button class="nav-item active" id="all-nav"><span class="icon" data-icon="chat"></span>Atendimento<span class="nav-count" id="nav-count">0</span></button>
+    <button class="nav-item" id="waiting-nav"><span class="icon" data-icon="bell"></span>Chamados<span class="dot" id="queue-dot" hidden></span></button>
+    <div class="rail-bottom"><div class="lia-card"><span class="lia-avatar">L<span></span></span><div><strong>Lia</strong><small>Assistente virtual</small></div><span class="spark">✦</span></div>
+    <button class="nav-item" id="access-open"><span class="icon" data-icon="access"></span>Acessibilidade</button>
+    <button class="nav-item" id="demo-toggle"><span class="icon" data-icon="play"></span>Ver demonstração</button>
+    <div class="profile"><span class="avatar">E</span><div><strong>Equipe EdUCA</strong><small>Campus de Natal</small></div></div></div>
+  </aside>
+  <main>
+    <header class="topbar"><div><span class="eyebrow">CONHECER, CUIDAR E CONVIVER</span><h1>Atendimento<span class="title-dot">.</span></h1></div><div class="top-actions"><span class="connection" id="connection"><i></i>Verificando conexão</span><button class="icon-button" id="theme-toggle" aria-label="Ativar modo escuro"><span class="icon" data-icon="moon"></span></button><button class="icon-button mobile-access" id="access-mobile" aria-label="Abrir acessibilidade"><span class="icon" data-icon="access"></span></button></div></header>
+    <div class="demo-banner" id="demo-banner" hidden><span>Você está vendo uma demonstração com conversas fictícias. Nenhuma mensagem será enviada.</span><button id="demo-exit">Sair da demonstração</button></div>
+    <div class="notice" id="notice" role="status" hidden></div>
+    <section class="overview" aria-label="Resumo dos atendimentos">
+      <button class="stat" data-filter="lia"><span class="stat-icon blue" data-icon="spark"></span><div><span>Com a Lia</span><strong id="stat-lia">—</strong></div><small>Respostas automáticas</small></button>
+      <button class="stat" data-filter="waiting"><span class="stat-icon amber" data-icon="bell"></span><div><span>Aguardando equipe</span><strong id="stat-waiting">—</strong></div><small>Precisam da sua atenção</small></button>
+      <button class="stat" data-filter="human"><span class="stat-icon green" data-icon="user"></span><div><span>Em atendimento</span><strong id="stat-human">—</strong></div><small>Conversas com a equipe</small></button>
+    </section>
+    <section class="inbox" aria-label="Central de conversas">
+      <aside class="chat-list"><div class="list-heading"><h2>Conversas</h2><span id="list-count">0</span></div>
+      <label class="search"><span class="icon" data-icon="search"></span><input type="search" id="search" placeholder="Buscar conversa" aria-label="Buscar conversa pelo nome"></label>
+      <div class="filters" role="group" aria-label="Filtrar conversas"><button class="selected" data-filter="all">Todas</button><button data-filter="waiting">Fila</button><button data-filter="human">Equipe</button><button data-filter="lia">Lia</button></div>
+      <div id="chats" class="chats" aria-busy="true"><div class="skeleton-row"><i></i><span></span></div><div class="skeleton-row"><i></i><span></span></div><div class="skeleton-row"><i></i><span></span></div><div class="skeleton-row"><i></i><span></span></div></div>
+      <div class="list-footer"><i></i> Histórico local das últimas 24 horas</div></aside>
+      <section class="conversation" id="conversation" tabindex="-1" aria-label="Conversa selecionada"><div class="empty-conversation"><span class="empty-icon" data-icon="chat"></span><h2>Cada conversa merece atenção.</h2><p>Selecione um atendimento para acompanhar<br> a Lia ou conversar com a pessoa.</p><span class="empty-caption">Lia + equipe EdUCA</span></div></section>
+      <aside class="details" id="details" aria-label="Informações do atendimento"><div class="detail-empty"><span class="icon" data-icon="info"></span><p>Os detalhes aparecem<br>ao selecionar uma conversa.</p></div></aside>
+    </section>
+    <footer class="page-footer"><span>EdUCA · Campus de Natal</span><span>Um espaço para ouvir e acolher.</span></footer>
+  </main>
+</div>
+<dialog id="access-dialog"><form method="dialog"><header><div><span class="eyebrow">DO SEU JEITO</span><h2>Acessibilidade</h2></div><button class="icon-button" aria-label="Fechar acessibilidade">×</button></header></form><p class="dialog-intro">Ajuste o painel para ficar confortável para você.</p>
+<label class="setting"><span><strong>Modo escuro</strong><small>Uma aparência suave para ambientes com pouca luz.</small></span><input id="dark-setting" type="checkbox" role="switch"></label>
+<label class="setting"><span><strong>Mais contraste</strong><small>Destaca textos, contornos e botões.</small></span><input id="contrast-setting" type="checkbox" role="switch"></label>
+<label class="setting"><span><strong>Reduzir movimentos</strong><small>Desativa transições e animações de carregamento.</small></span><input id="motion-setting" type="checkbox" role="switch"></label>
+<label class="setting"><span><strong>Tamanho do texto</strong><small>Amplia o conteúdo sem esconder as ações.</small></span><select id="font-setting"><option value="1">Padrão</option><option value="1.12">Maior</option><option value="1.25">Grande</option></select></label>
+<div class="keyboard-tip"><span class="icon" data-icon="keyboard"></span><p>Use <kbd>Tab</kbd> para navegar, <kbd>Enter</kbd> para selecionar e <kbd>Esc</kbd> para fechar este painel.</p></div><button class="secondary full" id="access-reset">Restaurar preferências</button></dialog>
+<div class="toast" id="toast" role="status" hidden></div>
+<script src="/panel/assets/app.js" defer></script></body></html>

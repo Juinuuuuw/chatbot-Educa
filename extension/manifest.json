@@ -1,10 +1,10 @@
 {
   "manifest_version": 3,
   "name": "Lia — assistente da EdUCA",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Atendimento em uma conversa autorizada, com RAG local e resposta por texto ou voz.",
   "permissions": ["storage", "scripting", "alarms"],
-  "host_permissions": ["https://web.whatsapp.com/*", "http://127.0.0.1:8765/*"],
+  "host_permissions": ["https://web.whatsapp.com/*", "http://127.0.0.1:8765/*", "http://127.0.0.1:8766/*"],
   "background": {"service_worker": "background.js"},
   "action": {"default_popup": "popup.html"},
   "content_scripts": [{"matches": ["https://web.whatsapp.com/*"], "js": ["heartbeat.js"]}]

@@ -15,7 +15,7 @@ def main():
         config['token'] = secrets.token_urlsafe(32)
     path.write_text(json.dumps(config, ensure_ascii=False, indent=2), encoding='utf-8')
     (ROOT / 'extension' / 'config.js').write_text(
-        'const EDUCA_TOKEN = ' + json.dumps(config['token']) + ';\n', encoding='utf-8'
+        'const EDUCA_TOKEN = ' + json.dumps(config['token']) + ';\nconst EDUCA_BASE = "http://127.0.0.1:' + str(config.get('port',8765)) + '";\n', encoding='utf-8'
     )
     print('Configuração local pronta. Recarregue a extensão se ela já estiver instalada.')
 

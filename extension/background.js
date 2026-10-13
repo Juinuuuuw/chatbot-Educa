@@ -4,7 +4,7 @@ importScripts('bridge.js');
 let activeJob=null;
 let batchTimer=null;
 const BATCH_WAIT_MS=5000;
-const BASE='http://127.0.0.1:8765';
+const BASE=typeof EDUCA_BASE==='string'?EDUCA_BASE:'http://127.0.0.1:8765';
 async function api(path,data,signal) {
   const timeout=AbortSignal.timeout(data?360000:8000);
   const r=await fetch(BASE+path,{method:data?'POST':'GET',headers:{'X-Educa-Token':EDUCA_TOKEN,...(data?{'Content-Type':'application/json'}:{})},body:data?JSON.stringify(data):undefined,signal:signal?AbortSignal.any([signal,timeout]):timeout});
@@ -38,6 +38,7 @@ async function messages(tabId,jid) {
   return page(tabId,'messages',[jid]);
 }
 async function start(self) {
+  if((await chrome.storage.local.get('panelEnabled')).panelEnabled)throw new Error('Pause a conexão do painel antes de usar o teste individual.');
   // Cancelar a consulta antiga libera a retomada; o resultado antigo não pode alterar a nova sessão.
   await pause('Preparando ativação…');
   const preparingRun=(await chrome.storage.local.get('run')).run;
@@ -216,15 +217,19 @@ async function processTick(job) {
     }
   }
 }
-chrome.alarms.onAlarm.addListener(a=>{if(a.name==='educa-tick')tick();});
+importScripts('panel-bridge.js');
+chrome.alarms.onAlarm.addListener(a=>{if(a.name==='educa-tick'){tick();panelTick();}});
 chrome.runtime.onMessage.addListener((m,sender,reply)=> {
   const fromPopup=!sender.tab && sender.url===chrome.runtime.getURL('popup.html');
-  if(m.type==='tick' && sender.tab?.url?.startsWith('https://web.whatsapp.com/')) {tick();reply({ok:true});return;}
+  if(m.type==='tick' && sender.tab?.url?.startsWith('https://web.whatsapp.com/')) {tick();panelTick();reply({ok:true});return;}
   if(!fromPopup) {reply({ok:false,error:'Origem não autorizada'});return;}
   (async()=> {
     if(m.type==='status') {const s=await chrome.storage.local.get(['enabled','label','lastStatus','self']);reply(s);}
     else if(m.type==='start') {await start(!!m.self);reply({ok:true});}
     else if(m.type==='stop') {await pause();reply({ok:true});}
+    else if(m.type==='panel-add') {await panelAdd();reply({ok:true});}
+    else if(m.type==='panel-open') {await panelOpen();reply({ok:true});}
+    else if(m.type==='panel-stop') {await chrome.storage.local.set({panelEnabled:false});reply({ok:true});}
     else reply({ok:false,error:'Ação desconhecida'});
   })().catch(async e=>{
     const detail=errorText(e);
