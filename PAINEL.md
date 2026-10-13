@@ -11,6 +11,8 @@ Nesta branch, o painel funciona com a extensão e a API local. A conexão com o 
 
 Para ver somente o visual: `http://127.0.0.1:8766/panel/#demo=1`. Os contatos e as respostas dessa demonstração são fictícios; suas ações não enviam mensagens.
 
+Use **Shift + E** para entrar ou sair da demonstração. O atalho não é acionado enquanto você digita em um campo ou está com um diálogo aberto. O botão circular no canto superior direito abre a acessibilidade, incluindo o modo escuro. A lateral mantém os filtros das filas, **Concluídas** e **Relatórios**, sem os antigos cartões da assistente ou botões de demonstração. A logo muda para uma versão transparente com letras claras no tema escuro.
+
 O botão **Pausar conexão do painel** interrompe a coleta e o envio pela extensão. As respostas já preparadas permanecem na fila; antes de retomar, confira as conversas. O teste individual antigo só pode ser ativado com a conexão do painel pausada.
 
 ## Fluxo de atendimento

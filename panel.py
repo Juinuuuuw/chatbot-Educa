@@ -75,7 +75,7 @@ def create_panel(root, token, generate, transcribe):
 
     @panel.get('/assets/{filename}')
     def asset(filename: str):
-        if filename not in ['app.js', 'reports.js', 'style.css', 'educa-logo.png']:
+        if filename not in ['app.js', 'reports.js', 'style.css', 'educa-logo.png','educa-logo-dark.png']:
             raise HTTPException(404)
         return FileResponse(assets / filename)
 

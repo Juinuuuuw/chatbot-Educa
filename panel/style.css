@@ -250,6 +250,12 @@ h1{font-size:1.7em}
 audio{min-width:180px}
 .empty-conversation{min-height:360px}
 }
+.brand{margin-bottom:14px;width:168px}.brand img{height:110px;border-radius:0;object-fit:contain}.brand .brand-logo-light{object-fit:cover;object-position:center 62%}.brand .brand-logo-dark{display:none}.dark .brand .brand-logo-light{display:none}.dark .brand .brand-logo-dark{display:block;background:transparent;padding:0}
+.neutral{background:var(--surface-alt);color:var(--muted)}.accessibility-float{border-radius:50%;width:42px;height:42px;box-shadow:0 3px 12px #0000000a}.shortcut-hint kbd{font-size:.9em}.rail{overflow:hidden}.rail-bottom{padding-top:12px!important}.rail .profile{margin-top:0;padding-top:14px}.sidebar-overview{gap:2px!important}.sidebar-overview .stat small{display:none!important}.sidebar-overview .stat{padding-top:12px!important;padding-bottom:12px!important}.sidebar-overview .stat div span{font-size:.88em!important}.filters{flex-wrap:wrap}
+@media(max-width:1250px) and (min-width:901px){.brand{width:145px}.sidebar-overview .stat{padding-left:7px;padding-right:7px;grid-template-columns:26px minmax(0,1fr);gap:6px}.sidebar-overview .stat div span{font-size:.8em!important}}
+@media(max-width:900px) and (min-width:651px){.brand{width:58px}.brand img{height:46px;object-fit:contain!important}.workspace-label{margin:0}.sidebar-overview{gap:2px!important}.sidebar-overview .stat{padding:9px 0!important}}
+@media(max-height:690px) and (min-width:651px){.rail{padding-top:14px;padding-bottom:12px;gap:5px}.brand{margin-bottom:10px}.brand img{height:74px}.workspace-label{margin-bottom:4px}.sidebar-overview{margin:4px 0 8px}.sidebar-overview .stat{padding-top:9px!important;padding-bottom:9px!important}.rail .profile{padding-top:10px}}
+@media(max-height:690px) and (min-width:651px){.rail{gap:3px}.rail .brand img{height:58px}.rail .sidebar-overview .stat{padding:6px 7px!important}.rail .profile small{display:none}.rail .profile .avatar{width:30px;height:30px}.rail .profile{padding-top:10px}}
 .sidebar-overview{display:flex;flex-direction:column;gap:5px;margin:10px 0 13px}
 .sidebar-overview .stat{background:transparent;border:0;border-radius:9px;box-shadow:none;padding:10px 10px;grid-template-columns:31px minmax(0,1fr);gap:0 8px;width:100%}
 .sidebar-overview .stat:hover,.sidebar-overview .stat[aria-pressed="true"]{background:var(--surface-alt);transform:none}
