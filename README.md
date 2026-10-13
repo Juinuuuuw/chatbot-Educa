@@ -27,10 +27,10 @@ Para conferir as regras sem iniciar a API nem enviar mensagens ao WhatsApp:
 - Ollama e `phi4-mini:latest`: geração de respostas.
 - BM25: recuperação do edital e de notícias; sem embeddings.
 - faster-whisper small: transcrição local na CPU.
-- edge-tts e voz Microsoft Francisca: síntese **online** do texto da resposta.
+- Chatterbox PT-BR: síntese local com a referência feminina da demonstração oficial.
 - SQLite: histórico curto e controle de repetição.
 
-Não exige chave paga de LLM ou de síntese. A voz padrão depende de internet e envia o texto da resposta ao serviço Microsoft; a disponibilidade desse serviço pode mudar. A integração com WhatsApp Web é não oficial.
+Não exige chave paga de LLM ou de síntese. Após a instalação e os downloads, a voz padrão é gerada no computador, sem enviar o texto à Microsoft. A integração com WhatsApp Web é não oficial.
 
 ## Instalação no Windows
 
@@ -42,9 +42,16 @@ python -m venv .venv
 ollama pull phi4-mini:latest
 .\.venv\Scripts\python.exe configurar.py
 .\.venv\Scripts\python.exe setup_assets.py
+.\.venv\Scripts\python.exe setup_chatterbox.py
 ```
 
-O último passo baixa os modelos locais de áudio e confere a integridade da biblioteca WA-JS. Os arquivos podem ocupar vários GB. Os modelos não são incluídos no Git. Há alternativas locais Piper, Kokoro e Supertonic no código; precisam dos respectivos modelos e devem ser avaliadas antes do atendimento.
+Os últimos passos baixam modelos de áudio e conferem a integridade da biblioteca WA-JS. Chatterbox usa um ambiente Python separado em `.venv-chatterbox`, PyTorch com CUDA e pesos específicos para português brasileiro, com revisões fixadas. Os arquivos ocupam vários GB e não são incluídos no Git. O código do carregador específico é preservado em `vendor/chatterbox`, com licença e indicação da origem. A referência feminina é a fornecida pela demonstração oficial; não é a voz de um integrante da equipe.
+
+A voz usa a GPU em uma etapa separada da Phi: a API descarrega a Phi do Ollama antes da síntese, e o processo de voz libera sua memória ao concluir. A geração pode acrescentar espera. Piper, Kokoro, Supertonic e Microsoft permanecem como alternativas opcionais no código.
+
+No teste desta máquina (GTX 1650, 4 GB de VRAM, cerca de 8 GB de RAM), uma amostra de 8,16 segundos usou aproximadamente 2,5 GB de VRAM. Após o primeiro aquecimento, foram medidos 19,94 segundos para carregar o modelo e 36,59 segundos para gerar a fala, além da inicialização do processo. O tempo varia com o texto e a memória disponível. Áudios de respostas idênticas são reutilizados por até 24 horas, com limite de 128 arquivos, para evitar nova síntese. Esses arquivos ficam em `data/voice-cache`, fora do Git.
+
+Na conferência pela API, a geração de uma resposta sobre gratuidade levou 85,30 segundos; a repetição da mesma resposta, reutilizando o áudio, levou 0,23 segundo. O teste não enviou mensagens ao WhatsApp. A qualidade percebida da voz precisa ser avaliada ouvindo as amostras e no piloto real.
 
 `configurar.py` gera uma chave aleatória em `local.json` e grava a mesma chave em `extension/config.js`. Ambos são ignorados pelo Git. O script preserva configurações e chaves existentes; execute-o novamente após alterar a chave e recarregue a extensão.
 

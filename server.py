@@ -1,5 +1,5 @@
 """API local do protótipo Educa. Não usa serviços de IA pagos."""
-import asyncio, base64, datetime, hashlib, io, json, os, pathlib, re, secrets, sqlite3, tempfile, threading, time, unicodedata, wave
+import asyncio, base64, datetime, hashlib, io, json, os, pathlib, re, secrets, sqlite3, subprocess, tempfile, threading, time, unicodedata, wave
 import requests
 from fastapi import FastAPI, HTTPException, Depends, Header
 from pydantic import BaseModel, Field
@@ -9,6 +9,7 @@ from lia import MENU, MENU_QUERIES, TEAM, greeting as lia_greeting, menu_choice,
 
 ROOT=pathlib.Path(__file__).resolve().parent
 DATA=ROOT/'data'; DATA.mkdir(exist_ok=True)
+VOICE_CACHE=DATA/'voice-cache'
 CONFIG=ROOT/'local.json'
 if not CONFIG.exists(): CONFIG.write_text(json.dumps({'token':secrets.token_urlsafe(32),'model':'phi4-mini:latest'}),encoding='utf-8')
 config=json.loads(CONFIG.read_text(encoding='utf-8'))
@@ -291,11 +292,43 @@ def speech_text(text):
     speech=re.sub(r'(\d{1,2}):(\d{2})',lambda m: m[1]+' horas'+(' e '+str(int(m[2]))+' minutos' if int(m[2]) else ''),speech)
     return re.sub(r'\s+',' ',speech).strip()
 
+def run_voice_process(command, **kwargs):
+    process=subprocess.Popen(command,stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,
+                             text=True,encoding='utf-8',creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0))
+    try:
+        stdout,stderr=process.communicate(kwargs['input'],timeout=kwargs.get('timeout',300))
+    except subprocess.TimeoutExpired:
+        if os.name=='nt':
+            subprocess.run(['taskkill','/PID',str(process.pid),'/T','/F'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+        else: process.kill()
+        process.communicate()
+        raise RuntimeError('A geração de voz local excedeu o tempo limite. Tente uma pergunta mais curta.')
+    return subprocess.CompletedProcess(command,process.returncode,stdout,stderr)
+
 def synthesize_wav(text, selected_voice=None):
     global voice,kokoro_voice,supertonic_voice
     speech=speech_text(text)
     buf=io.BytesIO()
-    if config.get('tts_engine','kokoro')=='edge':
+    if config.get('tts_engine')=='chatterbox':
+        python=pathlib.Path(config.get('chatterbox_python',ROOT/'.venv-chatterbox/Scripts/python.exe'))
+        if not python.exists(): raise RuntimeError('Ambiente Chatterbox ausente. Execute a instalação descrita no README.')
+        if config.get('chatterbox_device','cuda')=='cuda':
+            try:
+                requests.post('http://127.0.0.1:11434/api/generate',json={'model':config['model'],'keep_alive':0},timeout=15).raise_for_status()
+            except requests.ConnectionError:
+                pass  # Regras podem responder sem Ollama; nesse caso não há modelo para descarregar.
+        with tempfile.TemporaryDirectory(prefix='lia-voz-') as folder:
+            output=pathlib.Path(folder)/'response.wav'
+            params={'text':speech,'device':config.get('chatterbox_device','cuda'),
+                    'exaggeration':config.get('chatterbox_exaggeration',0.5),
+                    'cfg_weight':config.get('chatterbox_cfg_weight',0.35)}
+            process=run_voice_process([str(python),str(ROOT/'chatterbox_speak.py'),'--output',str(output)],
+                                   input=json.dumps(params,ensure_ascii=False),text=True,encoding='utf-8',
+                                   capture_output=True,timeout=300,creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0))
+            if process.returncode or not output.exists():
+                raise RuntimeError('Não foi possível gerar a voz Chatterbox local. Confira a instalação e a memória disponível.')
+            return output.read_bytes()
+    elif config.get('tts_engine','kokoro')=='edge':
         import edge_tts
         async def generate():
             audio=bytearray()
@@ -343,6 +376,18 @@ def synthesize_wav(text, selected_voice=None):
     return buf.getvalue()
 
 def speak(text):
+    cache=None
+    if config.get('tts_engine')=='chatterbox':
+        VOICE_CACHE.mkdir(exist_ok=True)
+        reference=ROOT/'models/chatterbox-pt-br/reference-female.wav'
+        settings={k:config.get(k) for k in ['tts_engine','tts_voice','chatterbox_exaggeration','chatterbox_cfg_weight']}
+        settings['reference_mtime']=reference.stat().st_mtime_ns if reference.exists() else 0
+        key=hashlib.sha256((speech_text(text)+json.dumps(settings,sort_keys=True)).encode()).hexdigest()
+        cache=VOICE_CACHE/(key+'.ogg')
+        files=sorted(VOICE_CACHE.glob('*.ogg'),key=lambda p:p.stat().st_mtime)
+        for path in files:
+            if time.time()-path.stat().st_mtime>86400: path.unlink(missing_ok=True)
+        if cache.exists(): return base64.b64encode(cache.read_bytes()).decode()
     wav_bytes=synthesize_wav(text)
     import av
     output=io.BytesIO()
@@ -357,7 +402,12 @@ def speak(text):
         for converted in resampler.resample(None):
             for packet in stream.encode(converted): target.mux(packet)
         for packet in stream.encode(None): target.mux(packet)
-    return base64.b64encode(output.getvalue()).decode()
+    audio=output.getvalue()
+    if cache:
+        cache.write_bytes(audio)
+        files=sorted(VOICE_CACHE.glob('*.ogg'),key=lambda p:p.stat().st_mtime,reverse=True)
+        for old in files[128:]:old.unlink(missing_ok=True)
+    return base64.b64encode(audio).decode()
 
 def transcribe(encoded):
     global whisper
@@ -377,7 +427,7 @@ def transcribe(encoded):
 @app.get('/health')
 def health():
     engine=config.get('tts_engine','kokoro')
-    voice_files={'supertonic':ROOT/'models/supertonic-3/onnx/vocoder.onnx','kokoro':ROOT/'models/kokoro/kokoro-v1.0.onnx','piper':ROOT/'models/pt_BR-faber-medium.onnx'}
+    voice_files={'chatterbox':ROOT/'models/chatterbox-pt-br/t3_pt_br.safetensors','supertonic':ROOT/'models/supertonic-3/onnx/vocoder.onnx','kokoro':ROOT/'models/kokoro/kokoro-v1.0.onnx','piper':ROOT/'models/pt_BR-faber-medium.onnx'}
     return {'ok':True,'supports_batches':True,'model':config['model'],'chunks':len(chunks),'voice':engine=='edge' or voice_files.get(engine,ROOT/'missing-model').exists(),'voice_requires_internet':engine=='edge','tts_engine':engine,'tts_voice':config.get('tts_voice','F2' if engine=='supertonic' else 'pf_dora'),'transcription':(ROOT/'models/whisper-small/model.bin').exists()}
 
 def attach_audio(out):

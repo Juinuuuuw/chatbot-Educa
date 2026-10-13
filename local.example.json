@@ -1,8 +1,8 @@
 {
   "model": "phi4-mini:latest",
-  "tts_engine": "edge",
-  "tts_voice": "pt-BR-FranciscaNeural",
-  "tts_speed": 1.0,
-  "tts_rate": "-3%",
-  "tts_pitch": "+2Hz"
+  "tts_engine": "chatterbox",
+  "tts_voice": "pt-br-female",
+  "chatterbox_device": "cuda",
+  "chatterbox_exaggeration": 0.5,
+  "chatterbox_cfg_weight": 0.35
 }
