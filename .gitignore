@@ -8,6 +8,7 @@ __pycache__/
 /data/runtime.sqlite3*
 /data/panel.sqlite3*
 /outputs/
+/tmp/
 /data/voice-cache/
 *.ogg
 !assets/waiting/*.ogg
