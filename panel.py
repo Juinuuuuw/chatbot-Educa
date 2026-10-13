@@ -1,5 +1,6 @@
 """Painel local e fila de transporte, independente da conexão com WhatsApp."""
 import base64
+import datetime
 import json
 import secrets
 import sqlite3
@@ -10,6 +11,7 @@ from pathlib import Path
 from fastapi import FastAPI, Depends, HTTPException, Request, Response
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
+from analytics import init as init_analytics, record_message, record_handoff, report
 
 def create_panel(root, token, generate, transcribe):
     panel = FastAPI(docs_url=None, redoc_url=None)
@@ -46,6 +48,9 @@ def create_panel(root, token, generate, transcribe):
         CREATE TABLE IF NOT EXISTS connection(id INTEGER PRIMARY KEY, heartbeat REAL, error TEXT);
         CREATE INDEX IF NOT EXISTS msg_chat ON messages(chat,created);
         ''')
+        init_analytics(c)
+        for row in c.execute("SELECT * FROM messages WHERE role='contact'").fetchall():
+            record_message(c,row)
 
     def check_origin(request):
         origin = request.headers.get('origin')
@@ -70,7 +75,7 @@ def create_panel(root, token, generate, transcribe):
 
     @panel.get('/assets/{filename}')
     def asset(filename: str):
-        if filename not in ['app.js', 'style.css', 'educa-logo.png']:
+        if filename not in ['app.js', 'reports.js', 'style.css', 'educa-logo.png']:
             raise HTTPException(404)
         return FileResponse(assets / filename)
 
@@ -113,6 +118,16 @@ def create_panel(root, token, generate, transcribe):
         c.execute("UPDATE messages SET status='uncertain' WHERE status='sending' AND created<?", (now-360,))
         c.execute("DELETE FROM messages WHERE created<? AND status NOT IN ('queued','sending')", (now-86400,))
         c.execute('DELETE FROM batches WHERE created<?', (now-86400,))
+        cutoff=(datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=-3)))-datetime.timedelta(days=90)).date().isoformat()
+        c.execute('DELETE FROM demand WHERE day<?',(cutoff,))
+        c.execute('DELETE FROM handoffs WHERE day<?',(cutoff,))
+
+    @panel.get('/api/reports', dependencies=[Depends(user)])
+    def reports(days: int=7):
+        if days not in [1,7,30,90]: raise HTTPException(422,'Escolha hoje, 7, 30 ou 90 dias.')
+        with db() as c:
+            expire(c)
+            return report(c,days)
 
     @panel.get('/api/snapshot', dependencies=[Depends(user)])
     def snapshot():
@@ -205,6 +220,7 @@ def create_panel(root, token, generate, transcribe):
             if not row: raise HTTPException(404,'Conversa não autorizada.')
             result=c.execute('INSERT OR IGNORE INTO messages VALUES (?,?,?,?,?,?,?,?,?)', (body.id,body.chat,'human' if body.from_me else 'contact',body.text,body.audio_base64,'audio/ogg' if body.audio_base64 else '', 'sent',time.time(),row['revision']))
             if result.rowcount:
+                record_message(c,c.execute('SELECT * FROM messages WHERE id=?',(body.id,)).fetchone())
                 if body.from_me:
                     c.execute("UPDATE chats SET state='human',revision=revision+1,owner='WhatsApp',updated=? WHERE id=?",(time.time(),body.chat))
                     c.execute("UPDATE messages SET status='cancelled' WHERE chat=? AND role='lia' AND status='queued'",(body.chat,))
@@ -254,7 +270,9 @@ def create_panel(root, token, generate, transcribe):
                 for row in rows:
                     if row['audio']:
                         text=transcribe(row['audio'])
-                        with db() as c: c.execute('UPDATE messages SET text=? WHERE id=?',(text,row['id']))
+                        with db() as c:
+                            c.execute('UPDATE messages SET text=? WHERE id=?',(text,row['id']))
+                            record_message(c,c.execute('SELECT * FROM messages WHERE id=?',(row['id'],)).fetchone())
                 out=None
             else:
                 out=generate({'chat_id':body.chat,'message_id':body.id,'parts':parts,'reply_audio':any(r['audio'] for r in rows)})
@@ -262,18 +280,22 @@ def create_panel(root, token, generate, transcribe):
                 transcripts=out.get('transcript','').split('\n\n')
                 with db() as c:
                     for row in rows:
-                        if row['audio'] and transcripts: c.execute('UPDATE messages SET text=? WHERE id=?',(transcripts.pop(0),row['id']))
+                        if row['audio'] and transcripts:
+                            c.execute('UPDATE messages SET text=? WHERE id=?',(transcripts.pop(0),row['id']))
+                            record_message(c,c.execute('SELECT * FROM messages WHERE id=?',(row['id'],)).fetchone())
             with db() as c:
                 current=c.execute('SELECT * FROM chats WHERE id=?',(body.chat,)).fetchone()
                 if out and current['state']=='lia' and current['revision']==chat['revision']:
                     escalation=out.get('handoff') or out.get('mode') in ['equipe','sem_fonte']
                     if escalation:
+                        record_handoff(c,body.id,'Pedido de atendente' if out.get('handoff') else 'Avaliação da equipe')
                         out['text']='Vou encaminhar sua conversa para a equipe da EdUCA. Uma pessoa poderá ajudar você por aqui.'
                         c.execute("UPDATE chats SET state='waiting',reason=?,updated=? WHERE id=?", ('Solicitação de atendimento' if out.get('handoff') else 'Precisa de avaliação da equipe',time.time(),body.chat))
                     c.execute('INSERT INTO messages VALUES (?,?,?,?,?,?,?,?,?)', ('lia:'+body.id,body.chat,'lia',out['text'],out.get('audio_base64',''),out.get('audio_mime',''),'queued',time.time(),chat['revision']))
                 c.execute("UPDATE batches SET status='done' WHERE id=?",(body.id,))
         except Exception as error:
             with db() as c:
+                record_handoff(c,body.id,'Falha no processamento')
                 c.execute("UPDATE batches SET status='error' WHERE id=?",(body.id,))
                 c.execute("UPDATE chats SET state=CASE WHEN state='lia' THEN 'waiting' ELSE state END,revision=revision+1,reason=?,updated=? WHERE id=? AND revision=?", ('Falha ao preparar resposta: '+type(error).__name__,time.time(),body.chat,chat['revision']))
             raise HTTPException(503,'Conversa encaminhada à equipe após falha no processamento.')

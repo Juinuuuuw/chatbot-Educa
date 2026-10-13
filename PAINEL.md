@@ -31,6 +31,10 @@ O painel atualiza a cada três segundos. A extensão verifica mensagens a cada c
 
 ## Dados e limites do protótipo
 
+O resumo das filas fica na barra lateral, liberando a área principal para as conversas. Na demonstração, o aviso aparece por sete segundos a cada dois minutos; o indicador de demonstração continua no cabeçalho.
+
+O botão **Relatórios** abre os indicadores de hoje ou dos últimos 7, 30 ou 90 dias: mensagens recebidas por texto/áudio, contatos distintos, encaminhamentos, assuntos e cursos mencionados, volume diário e motivos de encaminhamento. É possível exportar os dados em CSV. A classificação usa palavras-chave nas mensagens e nas transcrições; uma mensagem pode contar em mais de uma categoria. Não são números de matrículas ou vagas, nem confirmação de oferta de um curso. Os indicadores ficam guardados por até 90 dias, sem texto, áudio, nome ou telefone nas tabelas de indicadores. A contagem começa nos atendimentos registrados pelo painel; o histórico disponível no momento da atualização também é contabilizado. Encaminhamentos anteriores à implementação do relatório não são reconstruídos.
+
 O histórico e os áudios do painel são guardados em `data/panel.sqlite3`, com limpeza de mensagens finalizadas após 24 horas. As conversas autorizadas continuam cadastradas. Mensagens pendentes não são apagadas para evitar perder a fila. O arquivo não é versionado. A extensão não importa todo o histórico anterior nem adiciona automaticamente todos os contatos pessoais.
 
 Executa apenas neste computador, em `127.0.0.1`. Ainda não há contas individuais de atendentes, distribuição por funcionário nem acesso em rede. O modelo e a geração de voz compartilham o computador; várias conversas podem entrar na fila, mas o processamento local de IA é serializado.

@@ -7,6 +7,7 @@ import tempfile
 import threading
 import time
 import json
+from contextlib import closing
 import unittest
 from fastapi.testclient import TestClient
 sys.path.insert(0,str(pathlib.Path(__file__).resolve().parents[1]))
@@ -24,7 +25,8 @@ class PanelTest(unittest.TestCase):
             self.generated.append(body)
             return dict(self.output)
         self.generate=generate
-        self.client=TestClient(create_panel(self.root,'private-test-token',lambda b:self.generate(b),lambda b:'Áudio transcrito'))
+        self.audio_transcript='Áudio transcrito'
+        self.client=TestClient(create_panel(self.root,'private-test-token',lambda b:self.generate(b),lambda b:self.audio_transcript))
         self.addCleanup(self.client.close)
         self.headers={'X-Educa-Token':'private-test-token'}
         ticket=self.post('/bridge/ticket',{},bridge=True).json()['ticket']
@@ -44,6 +46,7 @@ class PanelTest(unittest.TestCase):
     def test_auth_ticket_one_use_and_origin(self):
         with TestClient(create_panel(self.root,'other-token',lambda b:{},lambda b:'')) as stranger:
             self.assertEqual(stranger.get('/api/snapshot').status_code,401)
+            self.assertEqual(stranger.get('/api/reports').status_code,401)
         self.assertEqual(self.client.post('/bridge/poll',json={}).status_code,401)
         ticket=self.post('/bridge/ticket',{},True).json()['ticket']
         self.assertEqual(self.client.post('/session',json={'ticket':ticket},headers={'Origin':'https://evil.example'}).status_code,403)
@@ -91,6 +94,7 @@ class PanelTest(unittest.TestCase):
             self.incoming('m-'+mode)
             self.batch('b-'+mode,['m-'+mode])
             self.assertEqual(self.snapshot()['chats'][0]['state'],'waiting')
+        self.assertEqual(self.client.get('/api/reports').json()['totals']['handoffs'],3)
 
     def test_human_audio_transcribed_without_llm_and_recording_queued(self):
         self.post('/api/action',{'chat':self.chat,'action':'take'})
@@ -138,5 +142,29 @@ class PanelTest(unittest.TestCase):
         finally:
             finish.set();worker.join(5)
         self.assertEqual(self.post('/bridge/poll',{},True).json()['queued'],[])
+
+    def test_reports_do_not_duplicate_and_do_not_expose_contacts(self):
+        self.incoming(text='O teatro na maturidade é gratuito? Quais documentos levar?')
+        self.incoming(text='O teatro na maturidade é gratuito? Quais documentos levar?')
+        report=self.client.get('/api/reports?days=7').json()
+        self.assertEqual(report['totals']['messages'],1)
+        self.assertEqual(report['totals']['contacts'],1)
+        self.assertEqual(report['courses'],[{'name':'Teatro na Maturidade','count':1}])
+        self.assertIn({'name':'Documentos','count':1},report['topics'])
+        self.assertNotIn(self.chat,json.dumps(report))
+        self.assertNotIn('O teatro',json.dumps(report))
+        self.assertEqual(self.client.get('/api/reports?days=1000').status_code,422)
+
+    def test_reports_update_audio_topics_and_survive_history_cleanup(self):
+        self.audio_transcript='A musculação é gratuita?'
+        self.post('/api/action',{'chat':self.chat,'action':'take'})
+        self.incoming(text='',audio_base64=base64.b64encode(b'fake audio').decode())
+        self.assertEqual(self.client.get('/api/reports').json()['totals']['audio'],1)
+        self.batch()
+        self.assertEqual(self.client.get('/api/reports').json()['courses'],[{'name':'Musculação','count':1}])
+        with closing(sqlite3.connect(self.root/'data/panel.sqlite3')) as c, c:
+            c.execute('DELETE FROM messages')
+        self.assertEqual(self.client.get('/api/reports').json()['totals']['messages'],1)
+        self.assertEqual(self.client.get('/api/reports').json()['totals']['audio'],1)
 
 if __name__=='__main__':unittest.main()
