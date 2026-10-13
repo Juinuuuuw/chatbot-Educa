@@ -6,8 +6,10 @@ Nesta branch, o painel funciona com a extensão e a API local. A conexão com o 
 
 1. Abra `INICIAR-LOCAL.cmd` nesta pasta. A cópia foi configurada na porta **8766**, separada da API original na porta 8765.
 2. No Brave, abra `brave://extensions`. Desative a extensão antiga para não ter duas versões respondendo à mesma conversa. Ative o modo de desenvolvedor e carregue a pasta `extension` desta cópia.
-3. Mantenha o WhatsApp Web aberto. Selecione uma conversa individual de teste. No popup da extensão, clique em **Adicionar conversa ao painel**. Isso autoriza apenas essa conversa, a partir das próximas mensagens. Repita para outros contatos de teste.
-4. O painel abre autenticado. Para reabrir, use **Abrir painel da EdUCA** na extensão. O acesso dura oito horas; a chave da API não aparece na interface nem é salva no navegador do painel.
+3. Mantenha o WhatsApp Web aberto e conectado à sua conta. No popup da extensão, clique em **Conectar todas as conversas**. Não é necessário selecionar um contato: as novas mensagens individuais serão detectadas e cadastradas automaticamente. Grupos, comunidades, canais, status/listas de transmissão e a conversa da própria conta ficam excluídos.
+4. O painel abre autenticado. Peça a um contato para enviar uma nova mensagem de texto ou áudio. O chat aparecerá no painel, com a Lia atendendo. Para reabrir, use **Abrir painel da EdUCA** na extensão. O acesso dura oito horas; a chave da API não aparece na interface nem é salva no navegador do painel.
+
+A versão 0.6.0 da extensão descobre conversas individuais existentes e contatos novos. O registro no painel acontece quando há uma mensagem nova após a ativação. Mensagens anteriores, mesmo não lidas, não disparam respostas retroativas. O WhatsApp pode estar aberto em outra conversa; não é preciso clicar no contato recebido. O modo de seleção manual continua disponível dentro de **Teste individual e seleção manual** no popup.
 
 Para ver somente o visual: `http://127.0.0.1:8766/panel/#demo=1`. Os contatos e as respostas dessa demonstração são fictícios; suas ações não enviam mensagens.
 
@@ -37,7 +39,7 @@ O resumo das filas fica na barra lateral, liberando a área principal para as co
 
 O botão **Relatórios** abre os indicadores de hoje ou dos últimos 7, 30 ou 90 dias: mensagens recebidas por texto/áudio, contatos distintos, encaminhamentos, assuntos e cursos mencionados, volume diário e motivos de encaminhamento. É possível exportar os dados em CSV. A classificação usa palavras-chave nas mensagens e nas transcrições; uma mensagem pode contar em mais de uma categoria. Não são números de matrículas ou vagas, nem confirmação de oferta de um curso. Os indicadores ficam guardados por até 90 dias, sem texto, áudio, nome ou telefone nas tabelas de indicadores. A contagem começa nos atendimentos registrados pelo painel; o histórico disponível no momento da atualização também é contabilizado. Encaminhamentos anteriores à implementação do relatório não são reconstruídos.
 
-O histórico e os áudios do painel são guardados em `data/panel.sqlite3`, com limpeza de mensagens finalizadas após 24 horas. As conversas autorizadas continuam cadastradas. Mensagens pendentes não são apagadas para evitar perder a fila. O arquivo não é versionado. A extensão não importa todo o histórico anterior nem adiciona automaticamente todos os contatos pessoais.
+O histórico e os áudios do painel são guardados em `data/panel.sqlite3`, com limpeza de mensagens finalizadas após 24 horas. As conversas cadastradas continuam registradas. Mensagens pendentes não são apagadas para evitar perder a fila. O arquivo não é versionado. O modo automático inclui qualquer conversa individual que receba novas mensagens após a ativação; não importa o histórico anterior. No número pessoal, isso inclui contatos pessoais.
 
 Executa apenas neste computador, em `127.0.0.1`. Ainda não há contas individuais de atendentes, distribuição por funcionário nem acesso em rede. O modelo e a geração de voz compartilham o computador; várias conversas podem entrar na fila, mas o processamento local de IA é serializado.
 
@@ -47,4 +49,6 @@ Uma futura integração oficial substitui o transporte da extensão, mantendo o 
 
 Testes de API cobrem autenticação, origem, acesso por ticket de uso único, deduplicação, fila, intervenção durante geração, transcrição no atendimento humano, áudio do atendente e envio incerto. Testes simulados da extensão cobrem múltiplos contatos e grupos de mensagens. A interface foi verificada no Brave em tema claro/escuro e larguras de 390, 768, 1024 e 1440 pixels.
 
-Esses testes não enviam mensagens reais. O teste de ponta a ponta no WhatsApp exige carregar a nova extensão e autorizar uma conversa de teste.
+Esses testes não enviam mensagens reais. O teste de ponta a ponta no WhatsApp exige carregar a nova extensão, conectar todas as conversas e receber uma mensagem de teste.
+
+A descoberta usa a [listagem individual da WA-JS](https://wppconnect.io/wa-js/functions/chat.list.html), com filtro adicional por tipo de conversa e identidade da própria conta. Os testes também conferem contatos novos, mensagens antigas não lidas, mensagens recebidas no segundo de ativação e exclusão de grupos/status.

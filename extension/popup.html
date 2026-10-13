@@ -1,15 +1,15 @@
 <!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>Lia — EdUCA</title>
-<style>body{font:14px system-ui;background:#f5f7fb;color:#17213c;width:340px;padding:16px}h1{font-size:22px;margin:0 0 8px}p{line-height:1.5}button{width:100%;border:0;border-radius:8px;padding:12px;margin:6px 0;background:#244bb2;color:white;font-weight:600;cursor:pointer}button:disabled{opacity:.5}#stop{background:#85343f}label{display:block;margin:12px 0}#status{background:white;border-radius:8px;padding:12px;white-space:pre-wrap;overflow-wrap:anywhere}small{color:#536079}</style>
-<h1>Lia · teste local</h1><p>Abra a conversa de teste no WhatsApp e autorize abaixo. A Lia responderá somente nela.</p>
-<label><input type="checkbox" id="self"> Testar em “Mensagem para você”</label>
-<small>No teste para você, envie texto ou áudio normalmente. Não precisa de comando. As respostas do próprio bot não serão tratadas como perguntas.</small>
-<button id="start">Ativar na conversa aberta</button><button id="stop">Pausar atendimento</button>
-<div id="status">Verificando…</div>
-<hr><h2>Painel de atendimento</h2>
-<p>Adicione as conversas que a Lia pode atender. As próximas mensagens aparecerão no painel.</p>
-<button id="panel-add">Adicionar conversa ao painel</button>
+<style>body{font:14px system-ui;background:#f5f7fb;color:#17213c;width:340px;padding:16px}h1{font-size:22px;margin:0 0 8px}p{line-height:1.5}button{width:100%;border:0;border-radius:8px;padding:12px;margin:6px 0;background:#244bb2;color:white;font-weight:600;cursor:pointer}button:disabled{opacity:.5}#stop,#panel-stop{background:#85343f}#panel-status{white-space:pre-wrap;overflow-wrap:anywhere}details{margin-top:14px}summary{cursor:pointer;font-size:13px;color:#536079}label{display:block;margin:12px 0}#status{background:white;border-radius:8px;padding:12px;white-space:pre-wrap;overflow-wrap:anywhere}small{color:#536079}</style>
+<h1>Lia · painel EdUCA</h1><p>Conecte o painel para atender automaticamente as novas mensagens de qualquer conversa individual.</p>
+<button id="panel-start">Conectar todas as conversas</button>
 <button id="panel-open">Abrir painel da EdUCA</button>
 <button id="panel-stop">Pausar conexão do painel</button>
 <div id="panel-status"></div>
-<p><small>Protótipo não oficial. Mantenha o WhatsApp Web e a API abertos. Não ativa atendimento em grupos ou outras conversas.</small></p>
+<p><small>Grupos, canais, listas de transmissão e sua própria conversa ficam excluídos. A coleta começa após a ativação. Mantenha o WhatsApp Web e a API abertos.</small></p>
+<details><summary>Teste individual e seleção manual</summary>
+<label><input type="checkbox" id="self"> Testar em “Mensagem para você”</label>
+<button id="start">Ativar teste na conversa aberta</button><button id="stop">Pausar teste individual</button>
+<div id="status">Verificando…</div>
+<button id="panel-add">Adicionar apenas a conversa aberta</button>
+<small>Para usar o teste individual, pause a conexão automática do painel.</small></details>
 <script src="popup.js"></script></html>

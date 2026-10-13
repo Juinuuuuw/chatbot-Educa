@@ -228,12 +228,13 @@ chrome.runtime.onMessage.addListener((m,sender,reply)=> {
     else if(m.type==='start') {await start(!!m.self);reply({ok:true});}
     else if(m.type==='stop') {await pause();reply({ok:true});}
     else if(m.type==='panel-add') {await panelAdd();reply({ok:true});}
+    else if(m.type==='panel-start') {await panelStart();reply({ok:true});}
     else if(m.type==='panel-open') {await panelOpen();reply({ok:true});}
-    else if(m.type==='panel-stop') {await chrome.storage.local.set({panelEnabled:false});reply({ok:true});}
+    else if(m.type==='panel-stop') {await panelStop();reply({ok:true});}
     else reply({ok:false,error:'Ação desconhecida'});
   })().catch(async e=>{
     const detail=errorText(e);
-    await chrome.storage.local.set({enabled:false,lastError:{stage:'Ativar atendimento',detail,at:new Date().toISOString()},lastStatus:'Não foi possível ativar: '+detail});
+    await chrome.storage.local.set({enabled:false,...(m.type?.startsWith('panel-')?{panelError:detail}:{}),lastError:{stage:'Ativar atendimento',detail,at:new Date().toISOString()},lastStatus:'Não foi possível ativar: '+detail});
     reply({ok:false,error:detail});
   });
   return true;

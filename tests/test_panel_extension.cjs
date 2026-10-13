@@ -3,14 +3,18 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const vm=require('node:vm');
-function harness(){
+const {webcrypto}=require('node:crypto');
+function harness({auto=false}={}){
  let clock=10000,next=0;
- const state={panelEnabled:true,panelTab:1,panelContacts:{'a@c.us':{seen:[],pending:null},'b@lid':{seen:[],pending:null}}};
+ const state={panelEnabled:true,panelTab:1,panelAuto:auto,panelStarted:10,panelContacts:auto?{}:{'a@c.us':{seen:[],pending:null},'b@lid':{seen:[],pending:null}}};
  const inbox={'a@c.us':[],'b@lid':[]},sent=[],requests=[],queue=[];
- const sandbox={console,Map,Date:class extends Date{static now(){return clock;}},BATCH_WAIT_MS:5000,BASE:'http://127.0.0.1:8766',errorText:e=>e.message,
-   chrome:{storage:{local:{get:async keys=>Object.fromEntries((Array.isArray(keys)?keys:[keys]).map(k=>[k,structuredClone(state[k])])),set:async values=>Object.assign(state,structuredClone(values))}}},
+ const sandbox={console,Map,crypto:webcrypto,Date:class extends Date{static now(){return clock;}},BATCH_WAIT_MS:5000,BASE:'http://127.0.0.1:8766',errorText:e=>e.message,
+   chrome:{storage:{local:{get:async keys=>Object.fromEntries((Array.isArray(keys)?keys:[keys]).map(k=>[k,structuredClone(state[k])])),set:async values=>Object.assign(state,structuredClone(values))}},tabs:{query:async()=>[{id:1,url:'https://web.whatsapp.com/'}],create:async()=>{}},alarms:{create:async()=>{}}},
+   pause:async()=>{},
    ensure:async()=>{},messages:async(tab,jid)=>structuredClone(inbox[jid]),batchId:async ids=>'batch:'+ids.join(','),
    page:async(tab,operation,args)=>{
+     if(operation==='individuals')return Object.entries(inbox).map(([jid,msgs])=>({jid,label:'Contato de teste',t:msgs.at(-1)?.t||0,marker:msgs.at(-1)?.id||'empty'}));
+     if(operation==='messages')return structuredClone(inbox[args[0]]);
      if(operation==='media')return 'dGVzdA==';
      if(operation==='prepare')return {id:'out-'+(++next)};
      if(operation==='send'){sent.push(args);inbox[args[0]].push({id:args[2],fromMe:true,type:'chat',body:args[1].text,t:clock/1000});return {id:args[2]};}
@@ -18,14 +22,16 @@ function harness(){
    },
    api:async(url,body)=>{
      requests.push({url,body});
-     if(url.endsWith('/poll'))return {chats:Object.keys(inbox).map(id=>({id,state:'lia'})),queued:queue.map(r=>({id:r.id,chat:r.chat}))};
+     if(url==='/health')return {supports_panel_auto:true};
+     if(url.endsWith('/ticket'))return {ticket:'ticket-ficticio'};
+     if(url.endsWith('/poll'))return {chats:Object.keys(state.panelContacts).map(id=>({id,state:'lia'})),queued:queue.map(r=>({id:r.id,chat:r.chat}))};
      if(url.endsWith('/claim')){const i=queue.findIndex(r=>r.id===body.id);return queue.splice(i,1)[0];}
      return {ok:true};
    }
  };
  const context=vm.createContext(sandbox);
  vm.runInContext(fs.readFileSync(path.join(__dirname,'../extension/panel-bridge.js'),'utf8'),context);
- return {state,inbox,sent,requests,queue,tick:()=>vm.runInContext('panelTick()',context),advance:ms=>clock+=ms};
+ return {state,inbox,sent,requests,queue,tick:()=>vm.runInContext('panelTick()',context),start:()=>vm.runInContext('panelStart()',context),stop:()=>vm.runInContext('panelStop()',context),advance:ms=>clock+=ms};
 }
 (async()=>{
  const h=harness();
@@ -44,5 +50,22 @@ function harness(){
  h.inbox['b@lid'].push({id:'operator',fromMe:true,type:'chat',body:'Vou atender',t:3});await h.tick();
  assert.equal(h.requests.find(r=>r.url.endsWith('/incoming')&&r.body.id==='operator').body.from_me,true);
  h.state.panelEnabled=false;h.queue.push({id:'reply-2',chat:'b@lid',text:'Não enviar'});await h.tick();assert.equal(h.sent.length,1);
+ const all=harness({auto:true});
+ all.inbox['a@c.us']=[{id:'old-unread',fromMe:false,type:'chat',body:'Pergunta antiga',t:1},{id:'old-same-second',fromMe:false,type:'chat',body:'Antiga no mesmo segundo',t:10}];
+ await all.start();await all.tick();
+ assert.equal(all.requests.filter(r=>r.url.endsWith('/register')).length,0,'Não importa nem responde o histórico ao conectar');
+ all.inbox['a@c.us'].push({id:'new-text',fromMe:false,type:'chat',body:'Oi',t:10},{id:'new-audio',fromMe:false,type:'ptt',body:'',t:10});
+ all.inbox['new@lid']=[{id:'new-contact',fromMe:false,type:'chat',body:'São gratuitos?',t:11}];
+ all.inbox['group@g.us']=[{id:'group-message',fromMe:false,type:'chat',body:'Não coletar',t:11}];
+ all.inbox['status@broadcast']=[{id:'status-message',fromMe:false,type:'chat',body:'Não coletar',t:11}];
+ await all.tick();
+ const registrations=all.requests.filter(r=>r.url.endsWith('/register')).map(r=>r.body.chat);
+ assert.deepEqual(registrations,['a@c.us','new@lid']);
+ assert.equal(all.requests.filter(r=>r.url.endsWith('/incoming')).length,3);
+ all.advance(5000);await all.tick();await new Promise(r=>setImmediate(r));
+ assert.equal(all.requests.filter(r=>r.url.endsWith('/batch')).length,2);
+ await all.tick();assert.equal(all.requests.filter(r=>r.url.endsWith('/incoming')).length,3,'Recarregar/verificar não repete entradas');
+ await all.stop();all.inbox['another@c.us']=[{id:'paused-message',fromMe:false,type:'chat',body:'Pausado',t:20}];await all.tick();
+ assert.equal(all.requests.filter(r=>r.url.endsWith('/register')).length,2,'Pausa interrompe descoberta');
  console.log('OK: painel com múltiplos chats, texto/áudio agrupados, deduplicação, envio, intervenção direta e pausa. Nenhuma mensagem real enviada.');
 })().catch(e=>{console.error(e);process.exit(1);});

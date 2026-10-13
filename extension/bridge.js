@@ -5,13 +5,25 @@ async function whatsappBridge(operation, ...args) {
     switch(operation) {
       case 'exists': value=!!window.WPP; break;
       case 'ready': value=!!window.WPP?.isReady; break;
+      case 'individuals': {
+        const chats=await WPP.chat.list({onlyUsers:true,ignoreGroupMetadata:true});
+        if(!Array.isArray(chats))throw new Error('O WhatsApp não retornou a lista de conversas individuais.');
+        const myId=WPP.conn.getMyUserId();
+        const me=myId?.toString();
+        if(!me)throw new Error('Entre na sua conta no WhatsApp Web antes de conectar o painel.');
+        value=chats.filter(c=>{
+          const jid=c.id?.toString();
+          return /@(c\.us|lid)$/.test(jid||'') && !c.isGroup && !c.isBroadcast && !c.isNewsletter && c.isSelf!==true && c.contact?.isMe!==true && jid!==me && c.id.equals?.(myId)!==true;
+        }).map(c=>({jid:c.id.toString(),label:c.formattedTitle || c.name || c.contact?.name || c.id.toString(),t:Number(c.t||0),marker:JSON.stringify([c.lastReceivedKey?._serialized || c.lastReceivedKey?.toString?.() || '',Number(c.t||0),Number(c.unreadCount||0)])}));
+        break;
+      }
       case 'active': {
         const c=WPP.chat.getActiveChat();
         value=c?{jid:c.id.toString(),label:c.formattedTitle || c.name || 'Conversa de teste',isSelf:c.isSelf===true || c.contact?.isMe===true || c.id.equals?.(WPP.conn.getMyUserId())===true}:null;
         break;
       }
       case 'messages': {
-        const msgs=await WPP.chat.getMessages(args[0],{count:40});
+        const msgs=await WPP.chat.getMessages(args[0],{count:args[1]===100?100:40});
         if(!Array.isArray(msgs)) throw new Error('O WhatsApp não retornou uma lista de mensagens válida.');
         value=msgs.map(m=>({id:m.id?._serialized || String(m.id),token:m.id?.id || '',fromMe:!!m.id?.fromMe,body:typeof m.body==='string'?m.body:'',type:m.type,t:Number(m.t||m.timestamp||0)}));
         break;

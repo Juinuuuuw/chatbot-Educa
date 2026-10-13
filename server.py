@@ -432,7 +432,7 @@ def transcribe(encoded):
 def health():
     engine=config.get('tts_engine','kokoro')
     voice_files={'chatterbox':ROOT/'models/chatterbox-pt-br/t3_pt_br.safetensors','supertonic':ROOT/'models/supertonic-3/onnx/vocoder.onnx','kokoro':ROOT/'models/kokoro/kokoro-v1.0.onnx','piper':ROOT/'models/pt_BR-faber-medium.onnx'}
-    return {'ok':True,'supports_batches':True,'model':config['model'],'chunks':len(chunks),'voice':engine=='edge' or voice_files.get(engine,ROOT/'missing-model').exists(),'voice_requires_internet':engine=='edge','tts_engine':engine,'tts_voice':config.get('tts_voice','F2' if engine=='supertonic' else 'pf_dora'),'transcription':(ROOT/'models/whisper-small/model.bin').exists()}
+    return {'ok':True,'supports_batches':True,'supports_panel_auto':True,'model':config['model'],'chunks':len(chunks),'voice':engine=='edge' or voice_files.get(engine,ROOT/'missing-model').exists(),'voice_requires_internet':engine=='edge','tts_engine':engine,'tts_voice':config.get('tts_voice','F2' if engine=='supertonic' else 'pf_dora'),'transcription':(ROOT/'models/whisper-small/model.bin').exists()}
 
 @app.get('/waiting-audio')
 def waiting_audio(exclude:str=''):

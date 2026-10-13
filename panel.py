@@ -46,6 +46,7 @@ def create_panel(root, token, generate, transcribe):
           audio TEXT DEFAULT '', mime TEXT DEFAULT '', status TEXT, created REAL, revision INTEGER DEFAULT 0);
         CREATE TABLE IF NOT EXISTS batches(id TEXT PRIMARY KEY, chat TEXT, status TEXT, created REAL);
         CREATE TABLE IF NOT EXISTS connection(id INTEGER PRIMARY KEY, heartbeat REAL, error TEXT);
+        CREATE TABLE IF NOT EXISTS bridge_settings(id INTEGER PRIMARY KEY, mode TEXT);
         CREATE INDEX IF NOT EXISTS msg_chat ON messages(chat,created);
         ''')
         init_analytics(c)
@@ -138,8 +139,20 @@ def create_panel(root, token, generate, transcribe):
               (SELECT COUNT(*) FROM messages WHERE chat=c.id AND role='contact') messages
               FROM chats c ORDER BY updated DESC''')]
             connection = c.execute('SELECT * FROM connection WHERE id=1').fetchone()
+            scope = c.execute('SELECT mode FROM bridge_settings WHERE id=1').fetchone()
         return {'chats': chats, 'connection': {'online': bool(connection and time.time()-connection['heartbeat']<20),
-            'error': connection['error'] if connection else '', 'last_seen': connection['heartbeat'] if connection else None}}
+            'scope':scope['mode'] if scope else 'selected','error': connection['error'] if connection else '', 'last_seen': connection['heartbeat'] if connection else None}}
+
+    class Connect(BaseModel):
+        mode: str
+
+    @panel.post('/bridge/connect', dependencies=[Depends(bridge)])
+    def connect(body: Connect):
+        if body.mode not in ['all','selected','off']: raise HTTPException(422,'Modo de conexão inválido.')
+        with db() as c:
+            c.execute('INSERT OR REPLACE INTO bridge_settings VALUES (1,?)',(body.mode,))
+            if body.mode=='off': c.execute('INSERT OR REPLACE INTO connection VALUES (1,0,?)',('',))
+        return {'ok':True,'mode':body.mode}
 
     @panel.get('/api/messages', dependencies=[Depends(user)])
     def messages(chat: str):
@@ -312,6 +325,20 @@ def create_panel(root, token, generate, transcribe):
             chats=[dict(r) for r in c.execute('SELECT * FROM chats')]
             queued=[dict(r) for r in c.execute("SELECT id,chat FROM messages WHERE status='queued' ORDER BY created LIMIT 20")]
         return {'chats':chats,'queued':queued}
+
+    class BridgeError(BaseModel):
+        chat: str = Field(min_length=1,max_length=150)
+        detail: str = Field(min_length=1,max_length=500)
+
+    @panel.post('/bridge/error', dependencies=[Depends(bridge)])
+    def bridge_error(body: BridgeError):
+        with db() as c:
+            row=c.execute('SELECT state,revision FROM chats WHERE id=?',(body.chat,)).fetchone()
+            if not row: raise HTTPException(404)
+            if row['state']=='lia':
+                record_handoff(c,body.chat+'|integration|'+str(row['revision']),'Falha na integração')
+            c.execute("UPDATE chats SET state=CASE WHEN state='lia' THEN 'waiting' ELSE state END,revision=revision+CASE WHEN state='lia' THEN 1 ELSE 0 END,reason=? WHERE id=?",('Falha na conexão: '+body.detail,body.chat))
+        return {'ok':True}
 
     class Claim(BaseModel):
         id: str = Field(min_length=1,max_length=300)

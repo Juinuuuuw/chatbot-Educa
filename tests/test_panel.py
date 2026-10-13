@@ -53,6 +53,21 @@ class PanelTest(unittest.TestCase):
         self.assertEqual(self.post('/session',{'ticket':ticket}).status_code,200)
         self.assertEqual(self.post('/session',{'ticket':ticket}).status_code,401)
 
+    def test_automatic_scope_and_pause(self):
+        self.assertEqual(self.post('/bridge/connect',{'mode':'all'},True).status_code,200)
+        self.post('/bridge/poll',{},True)
+        self.assertEqual(self.snapshot()['connection']['scope'],'all')
+        self.assertTrue(self.snapshot()['connection']['online'])
+        self.post('/bridge/connect',{'mode':'off'},True)
+        self.assertFalse(self.snapshot()['connection']['online'])
+
+    def test_integration_error_does_not_interrupt_human(self):
+        self.post('/bridge/error',{'chat':self.chat,'detail':'Download falhou'},True)
+        self.assertEqual(self.snapshot()['chats'][0]['state'],'waiting')
+        self.post('/api/action',{'chat':self.chat,'action':'take'})
+        self.post('/bridge/error',{'chat':self.chat,'detail':'Download falhou'},True)
+        self.assertEqual(self.snapshot()['chats'][0]['state'],'human')
+
     def test_batch_and_delivery_are_idempotent(self):
         self.incoming();self.incoming()
         self.assertEqual(self.batch().status_code,200)
