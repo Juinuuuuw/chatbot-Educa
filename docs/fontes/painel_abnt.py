@@ -86,3 +86,18 @@ def build_panel(context, first_page=14):
     p.para('Essas verificações não constituem um teste completo de envio pela conta pessoal nem validam o uso institucional. A avaliação de ponta a ponta deve conferir a entrada das mensagens, a resposta da Lia e a continuidade pela equipe na sessão real. Falhas na sessão do WhatsApp podem afetar o atendimento; um chat com erro deve permanecer visível para conferência.')
     p.para('A integração ainda depende da extensão e do WhatsApp Web. Uma adoção futura da API oficial exigirá implementar e testar outro transporte de entrada e saída. A organização em interface, API e fila permite preservar os estados do atendimento e o processamento da Lia durante essa mudança, mas não torna a migração automática.')
     p.finish()
+
+    p=Page(first_page+5,'10.6 RISCOS DA INTEGRAÇÃO NÃO OFICIAL')
+    p.para('A extensão automatiza a sessão do WhatsApp Web por meio de uma biblioteca de terceiros. Ela não constitui uma integração autorizada pela API oficial. O WhatsApp informa que mensagens automatizadas em desacordo com suas regras podem levar à restrição ou ao banimento da conta. Esse risco precisa ser considerado antes de usar um número institucional (WHATSAPP, s.d.).')
+    p.para('Mudanças no WhatsApp Web, desconexão da sessão e suspensão do navegador podem interromper o atendimento. A API oficial oferece um transporte documentado de mensagens e eventos, mas exige implementação específica e cumprimento das regras da plataforma. A migração reduz a dependência da sessão do navegador; não elimina obrigações de uso ou de proteção dos dados.')
+    p.subheading('10.7 Custos da API oficial')
+    p.para('A tabela da Meta vigente desde 1º de outubro de 2026 estabelece R$ 0,035 por mensagem de serviço entregue a destinatários no Brasil, para contas faturadas em reais. Cada número recebe uma franquia de mil mensagens de serviço por mês; a cobrança começa na mensagem 1.001. A franquia não acumula para o mês seguinte. Mensagens recebidas não são cobradas (META, 2026).')
+    p.table(['Respostas de serviço no mês','Mensagens cobradas','Custo da Meta'],[
+        ('1.000','0','R$ 0,00'),
+        ('2.000','1.000','R$ 35,00'),
+        ('3.000','2.000','R$ 70,00'),
+        ('5.000','4.000','R$ 140,00')
+    ],[WIDTH*.44,WIDTH*.29,WIDTH*.27],'Quadro 6 - Estimativa mensal de mensagens de serviço')
+    p.para('O cálculo considera um número, apenas mensagens de serviço e a franquia mensal disponível, sem outras isenções. R$ 0,035 equivalem a 3,5 centavos. A franquia conta mensagens, não atendimentos: um áudio de espera e uma resposta final são duas saídas. Respostas livres exigem uma janela de atendimento aberta, de vinte e quatro horas após a mensagem mais recente da pessoa.')
+    p.para('Marketing, utilidade e autenticação têm regras próprias. Provedores, infraestrutura e manutenção podem gerar custos adicionais. Os valores, consultados em outubro de 2026, devem ser reconfirmados antes da contratação.')
+    p.finish()

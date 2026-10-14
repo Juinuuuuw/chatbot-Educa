@@ -97,14 +97,14 @@ if not args.somente_painel:
  center_line('Natal',BOTTOM+36);center_line('2026',BOTTOM+18);p.finish()
 
  p=Page(3,numbered=False);p.heading('RESUMO',center=True)
- summary='O atendimento pelo WhatsApp permite que o público procure informações por texto e por mensagens de voz. Este relatório descreve Lia, um protótipo de assistente virtual para a EdUCA no Campus de Natal, desenvolvido com uma extensão para o navegador Brave e uma API em Python. O atendimento combina regras para informações previamente verificadas com recuperação de trechos de documentos oficiais e geração de respostas pelo modelo Phi-4 Mini, executado por meio do Ollama. A base reúne o edital de matrícula do semestre 2026.2 e notícias do portal da Universidade do Estado do Rio Grande do Norte. A busca utiliza BM25, enquanto os dados das turmas são organizados separadamente para evitar confusão com notícias de outros períodos. Mensagens de voz são transcritas localmente pelo Whisper, e as respostas faladas são geradas localmente pelo Kokoro, com a voz Dora. O painel web reúne as conversas e permite a continuidade do atendimento pela equipe. Os testes verificaram respostas combinadas, histórico por conversa, formato de áudio e execução do modelo na GPU. O protótipo fornece orientação, mas não realiza matrícula, não consulta vagas em tempo real e não substitui decisões da equipe. Pedidos de atendimento humano são organizados em uma fila, sem atribuição automática a um funcionário. Sua utilização institucional depende de avaliação do funcionamento na sessão do WhatsApp e de acompanhamento das informações da base.'
+ summary='O atendimento pelo WhatsApp permite que o público procure informações por texto e por mensagens de voz. Este relatório descreve Lia, um protótipo de assistente virtual para a EdUCA no Campus de Natal, desenvolvido com uma extensão para navegadores baseados em Chromium e uma API em Python. O atendimento combina regras para informações previamente verificadas com recuperação de trechos de documentos oficiais e geração de respostas pelo modelo Phi-4 Mini, executado por meio do Ollama. A base reúne o edital de matrícula do semestre 2026.2 e notícias do portal da Universidade do Estado do Rio Grande do Norte. A busca utiliza BM25, enquanto os dados das turmas são organizados separadamente para evitar confusão com notícias de outros períodos. Mensagens de voz são transcritas localmente pelo Whisper, e as respostas faladas são geradas localmente pelo Kokoro, com a voz Dora. O painel web reúne as conversas e permite a continuidade do atendimento pela equipe. Os testes verificaram respostas combinadas, histórico por conversa, formato de áudio e execução do modelo na GPU. O protótipo fornece orientação, mas não realiza matrícula, não consulta vagas em tempo real e não substitui decisões da equipe. Pedidos de atendimento humano são organizados em uma fila, sem atribuição automática a um funcionário. Sua utilização institucional depende de avaliação do funcionamento na sessão do WhatsApp e de acompanhamento das informações da base.'
  p.para(summary,ParagraphStyle('summary',parent=BODY,firstLineIndent=0),gap=18)
  p.para('<b>Palavras-chave:</b> chatbot; WhatsApp; recuperação de informações; modelo de linguagem; atendimento.',ParagraphStyle('keywords',parent=BODY,firstLineIndent=0));p.finish()
 
  p=Page(4,numbered=False);p.heading('SUMÁRIO',center=True)
  contents=[('1 INTRODUÇÃO',5),('2 ARQUITETURA E TECNOLOGIAS',6),('3 FUNCIONAMENTO DA EXTENSÃO',7),('4 RECUPERAÇÃO DE INFORMAÇÕES',8),('5 PROCESSAMENTO DE ÁUDIO',9),('6 HISTÓRICO E CONTROLE DO ATENDIMENTO',10),('7 VALIDAÇÃO E OPERAÇÃO',11),('8 LIA: IDENTIDADE E FLUXO DE ATENDIMENTO',12),('9 ESCOPO DAS RESPOSTAS',13),('10 CONSIDERAÇÕES FINAIS',14),('REFERÊNCIAS',15)]
  if not args.sem_painel:
-  contents=contents[:-2]+[('10 PAINEL DE ATENDIMENTO',14),('11 CONSIDERAÇÕES FINAIS',19),('REFERÊNCIAS',20)]
+  contents=contents[:-2]+[('10 PAINEL DE ATENDIMENTO',14),('11 CONSIDERAÇÕES FINAIS',20),('REFERÊNCIAS',21)]
  for title,page in contents:
   c.setFont('TimesNewRoman',12);c.drawString(LEFT,p.y-12,title);c.drawRightString(W-RIGHT,p.y-12,str(page))
   start=LEFT+pdfmetrics.stringWidth(title,'TimesNewRoman',12)+8;end=W-RIGHT-24
@@ -113,7 +113,7 @@ if not args.somente_painel:
 
  p=Page(5,'1 INTRODUÇÃO')
  p.para('O Educa oferece cursos e atividades de extensão no Campus de Natal da Universidade do Estado do Rio Grande do Norte. As dúvidas do público envolvem, entre outros assuntos, faixa de idade, horário das aulas, gratuidade e matrícula. O edital 019/2026 reúne as condições previstas para o semestre 2026.2 (FUNCITERN; UERN, 2026).')
- p.para('O protótipo documentado neste relatório foi desenvolvido para responder a essas perguntas em uma conversa do WhatsApp Web. Sua estrutura reúne uma extensão no navegador Brave e uma API executada no computador. A extensão recebe as mensagens e envia as respostas; a API consulta a base, aplica regras e, quando necessário, solicita uma resposta ao modelo de linguagem.')
+ p.para('O protótipo documentado neste relatório foi desenvolvido para responder a essas perguntas em uma conversa do WhatsApp Web. Sua estrutura reúne uma extensão em navegador baseado em Chromium e uma API executada no computador. A extensão recebe as mensagens e envia as respostas; a API consulta a base, aplica regras e, quando necessário, solicita uma resposta ao modelo de linguagem.')
  d=Drawing(WIDTH,165);xs=[0,120,240,360];ww=WIDTH-360
  labels=['WhatsApp Web\nTexto ou áudio','Extensão\nJavaScript e WA-JS','API local\nPython e FastAPI','Regras e RAG\nPhi-4 Mini']
  for i,(x,label) in enumerate(zip(xs,labels)):
@@ -127,7 +127,7 @@ if not args.somente_painel:
  p.finish()
 
  p=Page(6,'2 ARQUITETURA E TECNOLOGIAS')
- p.para('A extensão foi escrita em JavaScript, com interface em HTML e CSS. A API utiliza Python e FastAPI, que organiza os endpoints de acesso ao processamento (FastAPI, s.d.). O Quadro 1 relaciona os componentes usados na versão documentada.')
+ p.para('A extensão foi escrita em JavaScript, com interface em HTML e CSS e Manifest V3. Sua estrutura utiliza APIs de extensões Chromium, presentes em Chrome, Edge e Brave (MICROSOFT, s.d.). A compatibilidade esperada precisa ser conferida em cada navegador; os testes do protótipo utilizaram Brave. A API utiliza Python e FastAPI (FASTAPI, s.d.).')
  p.table(['Componente','Tecnologia','Função'],[
  ('Extensão','JavaScript','Receber mensagens e controlar a comunicação com a API.'),
  ('Interface','HTML e CSS','Exibir ativação, pausa e andamento do atendimento.'),
@@ -250,24 +250,27 @@ if not args.somente_painel:
   from painel_abnt import build_panel
   build_panel(globals(),first_page=14)
 
- p=Page(14 if args.sem_painel else 19,('10' if args.sem_painel else '11')+' CONSIDERAÇÕES FINAIS')
+ p=Page(14 if args.sem_painel else 20,('10' if args.sem_painel else '11')+' CONSIDERAÇÕES FINAIS')
  p.para('O protótipo reúne, em uma mesma conversa, respostas por regras, consulta a documentos e comunicação por áudio. A extensão permite aproveitar a sessão do WhatsApp Web, enquanto a API concentra a base e o processamento. Essa organização facilita a revisão das respostas e a atualização das fontes sem alterar toda a interface do navegador.')
  p.para('As regras são úteis para informações que podem ser conferidas diretamente, como gratuidade, faixa de idade e horário de uma turma. A recuperação de trechos amplia o conjunto de perguntas que pode ser respondido, mas o modelo ainda pode acrescentar detalhes desnecessários ou interpretar uma fonte de maneira inadequada. Por isso, as respostas precisam ser limitadas ao pedido atual e avaliadas com exemplos de uso real.')
  p.para('A disponibilidade de vagas e as datas de novas inscrições continuam dependendo de confirmação pela equipe. Uma previsão histórica do edital não permite anunciar inscrições abertas. O painel organiza os pedidos de atendimento humano e permite a continuidade pela equipe, mas não substitui a análise institucional nem garante que uma pessoa esteja disponível no momento da solicitação.')
  p.para('Antes de ampliar o piloto, é necessário acompanhar a integração com o WhatsApp, revisar os resultados da transcrição e manter a base atualizada. Também devem ser avaliados o acesso aos registros e a clareza da voz. A síntese local reduz a dependência de serviços externos. Essas verificações ajudam a estabelecer o que a assistente pode responder sozinha e o que deve permanecer sob responsabilidade da equipe.')
  p.finish()
 
- p=Page(15 if args.sem_painel else 20,numbered=True);p.heading('REFERÊNCIAS',center=True)
+ p=Page(15 if args.sem_painel else 21,numbered=True);p.heading('REFERÊNCIAS',center=True)
  refs=[
   'BROWN, Dorian. <b>rank_bm25: a collection of BM25 algorithms in Python</b>. [S. l.], [s. d.]. Disponível em: https://github.com/dorianbrown/rank_bm25. Acesso em: 8 out. 2026.',
   'FASTAPI. <b>FastAPI</b>. [S. l.], [s. d.]. Disponível em: https://fastapi.tiangolo.com/. Acesso em: 8 out. 2026.',
   'FUNCITERN; UNIVERSIDADE DO ESTADO DO RIO GRANDE DO NORTE. <b>Edital nº 019/2026 FUNCITERN PROEX UERN: matrículas de alunos para o semestre 2026.2</b>. Natal, 23 jul. 2026. 7 p. Documento fornecido para a base do protótipo.',
   'HEXGRAD. <b>Kokoro-82M: modelo e vozes de síntese</b>. [S. l.], [s. d.]. Disponível em: https://huggingface.co/hexgrad/Kokoro-82M. Acesso em: 13 out. 2026.',
   'MEDEIROS, Juino. <b>Chatbot EdUCA: painel de atendimento</b>. Código-fonte e testes da branch feat/painel-atendimento, revisão 1e9af68. 2026. Disponível em: https://github.com/Juinuuuuw/chatbot-Educa. Consulta ao código local em: 14 out. 2026.',
+  'META. <b>Pricing on the WhatsApp Business Platform</b>. [S. l.], 2026. Disponível em: https://developers.facebook.com/documentation/business-messaging/whatsapp/pricing/. Acesso em: 14 out. 2026.',
+  'MICROSOFT. <b>Overview of Microsoft Edge extensions</b>. [S. l.], [s. d.]. Disponível em: https://learn.microsoft.com/en-us/microsoft-edge/extensions/. Acesso em: 14 out. 2026.',
   'OLLAMA. <b>FAQ</b>. [S. l.], [s. d.]. Disponível em: https://docs.ollama.com/faq. Acesso em: 8 out. 2026.',
   'SYSTRAN. <b>faster-whisper: faster Whisper transcription with CTranslate2</b>. [S. l.], [s. d.]. Disponível em: https://github.com/SYSTRAN/faster-whisper. Acesso em: 8 out. 2026.',
   'THEWH1TEAGLE. <b>kokoro-onnx</b>. [S. l.], [s. d.]. Disponível em: https://github.com/thewh1teagle/kokoro-onnx. Acesso em: 13 out. 2026.',
   'UNIVERSIDADE DO ESTADO DO RIO GRANDE DO NORTE. <b>Portal UERN: notícias da tag Educa</b>. [S. l.], [s. d.]. Disponível em: https://portal.uern.br/blog/tag/educa/. Acesso em: 8 out. 2026.',
+  'WHATSAPP. <b>How to use WhatsApp responsibly</b>. [S. l.], [s. d.]. Disponível em: https://faq.whatsapp.com/361005896189245/. Acesso em: 14 out. 2026.',
   'WPPCONNECT. <b>WA-JS: documentação da versão 4.6.1</b>. [S. l.], [s. d.]. Disponível em: https://wppconnect.io/wa-js/. Acesso em: 8 out. 2026.',
  ]
  for ref in refs:p.para(ref,REF,gap=8)
