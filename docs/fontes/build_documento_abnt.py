@@ -11,7 +11,7 @@ from reportlab.graphics.shapes import Drawing, Rect, String, Line, Polygon
 from reportlab.graphics import renderPDF
 
 import argparse
-args_parser=argparse.ArgumentParser(description='Documento ABNT com apêndice opcional do painel.')
+args_parser=argparse.ArgumentParser(description='Relatório ABNT com capítulo integrado do painel.')
 mode=args_parser.add_mutually_exclusive_group()
 mode.add_argument('--sem-painel',action='store_true')
 mode.add_argument('--somente-painel',action='store_true')
@@ -32,7 +32,7 @@ SMALL=ParagraphStyle('small',fontName='TimesNewRoman',fontSize=10,leading=12,ali
 REF=ParagraphStyle('reference',parent=SMALL,spaceAfter=12)
 CELL=ParagraphStyle('cell',parent=SMALL,alignment=TA_LEFT)
 HEADER=ParagraphStyle('header',parent=CELL,fontName='TimesNewRomanBold')
-c=canvas.Canvas(str(OUT),pagesize=(W,H));c.setTitle('Lia: assistente virtual da EdUCA');c.setAuthor('Juino Medeiros');c.setSubject('Relatório técnico sobre arquitetura e funcionamento do protótipo')
+c=canvas.Canvas(str(OUT),pagesize=(W,H));c.setTitle('LIA COMO ASSISTENTE VIRTUAL DA EDUCA');c.setAuthor('Unidade Curricular de Extensão - Professora Glaucia');c.setSubject('Relatório técnico sobre arquitetura e funcionamento do protótipo')
 
 class Page:
  def __init__(self,n,title=None,numbered=True):
@@ -79,27 +79,32 @@ def center_line(text,y,bold=False):
 if not args.somente_painel:
  # Cover is counted as the first sheet, according to the pagination requested.
  p=Page(1,numbered=False)
- center_line('JUINO MEDEIROS',H-TOP-18)
- center_line('LIA: ASSISTENTE VIRTUAL DA EDUCA',H*.58,bold=True)
+ center_line('UNIVERSIDADE DO ESTADO DO RIO GRANDE DO NORTE',H-TOP-18)
+ center_line('UNIDADE CURRICULAR DE EXTENSÃO',H-TOP-42)
+ center_line('PROFESSORA GLAUCIA',H-TOP-66)
+ center_line('LIA COMO ASSISTENTE VIRTUAL DA EDUCA',H*.58,bold=True)
  center_line('Arquitetura e funcionamento do protótipo',H*.58-24)
  center_line('Natal',BOTTOM+36);center_line('2026',BOTTOM+18);p.finish()
 
  p=Page(2,numbered=False)
- center_line('JUINO MEDEIROS',H-TOP-18)
- center_line('LIA: ASSISTENTE VIRTUAL DA EDUCA',H*.65,bold=True)
+ center_line('UNIVERSIDADE DO ESTADO DO RIO GRANDE DO NORTE',H-TOP-18)
+ center_line('UNIDADE CURRICULAR DE EXTENSÃO',H-TOP-42)
+ center_line('PROFESSORA GLAUCIA',H-TOP-66)
+ center_line('LIA COMO ASSISTENTE VIRTUAL DA EDUCA',H*.65,bold=True)
  center_line('Arquitetura e funcionamento do protótipo',H*.65-24)
- note=Paragraph('Relatório técnico de documentação do protótipo de atendimento para o Educa no Campus de Natal, com descrição da extensão para WhatsApp Web, da API, da recuperação de informações e do processamento de áudio.',ParagraphStyle('nature',fontName='TimesNewRoman',fontSize=12,leading=12,alignment=TA_JUSTIFY))
+ note=Paragraph('Relatório técnico elaborado no âmbito de uma Unidade Curricular de Extensão (UCE), sob orientação da professora Glaucia, sobre o desenvolvimento de uma assistente virtual para a EdUCA no Campus de Natal da UERN.',ParagraphStyle('nature',fontName='TimesNewRoman',fontSize=12,leading=12,alignment=TA_JUSTIFY))
  _,nh=note.wrap(WIDTH/2,300);note.drawOn(c,LEFT+WIDTH/2,H*.47-nh)
  center_line('Natal',BOTTOM+36);center_line('2026',BOTTOM+18);p.finish()
 
  p=Page(3,numbered=False);p.heading('RESUMO',center=True)
- summary='O atendimento pelo WhatsApp permite que o público procure informações por texto e por mensagens de voz. Este relatório descreve Lia, um protótipo de assistente virtual para a EdUCA no Campus de Natal, desenvolvido com uma extensão para o navegador Brave e uma API em Python. O atendimento combina regras para informações previamente verificadas com recuperação de trechos de documentos oficiais e geração de respostas pelo modelo Phi-4 Mini, executado por meio do Ollama. A base reúne o edital de matrícula do semestre 2026.2 e notícias do portal da Universidade do Estado do Rio Grande do Norte. A busca utiliza BM25, enquanto os dados das turmas são organizados separadamente para evitar confusão com notícias de outros períodos. Mensagens de voz são transcritas localmente pelo Whisper, e as respostas faladas são geradas pela voz Francisca, acessada pelo serviço online do Microsoft Edge. Os testes verificaram respostas combinadas, histórico por conversa, formato de áudio e execução do modelo na GPU. O protótipo fornece orientação, mas não realiza matrícula, não consulta vagas em tempo real e não encaminha automaticamente a conversa para um atendente. Sua utilização institucional depende de avaliação do funcionamento na sessão do WhatsApp e de acompanhamento das informações da base.'
+ summary='O atendimento pelo WhatsApp permite que o público procure informações por texto e por mensagens de voz. Este relatório descreve Lia, um protótipo de assistente virtual para a EdUCA no Campus de Natal, desenvolvido com uma extensão para o navegador Brave e uma API em Python. O atendimento combina regras para informações previamente verificadas com recuperação de trechos de documentos oficiais e geração de respostas pelo modelo Phi-4 Mini, executado por meio do Ollama. A base reúne o edital de matrícula do semestre 2026.2 e notícias do portal da Universidade do Estado do Rio Grande do Norte. A busca utiliza BM25, enquanto os dados das turmas são organizados separadamente para evitar confusão com notícias de outros períodos. Mensagens de voz são transcritas localmente pelo Whisper, e as respostas faladas são geradas localmente pelo Kokoro, com a voz Dora. O painel web reúne as conversas e permite a continuidade do atendimento pela equipe. Os testes verificaram respostas combinadas, histórico por conversa, formato de áudio e execução do modelo na GPU. O protótipo fornece orientação, mas não realiza matrícula, não consulta vagas em tempo real e não substitui decisões da equipe. Pedidos de atendimento humano são organizados em uma fila, sem atribuição automática a um funcionário. Sua utilização institucional depende de avaliação do funcionamento na sessão do WhatsApp e de acompanhamento das informações da base.'
  p.para(summary,ParagraphStyle('summary',parent=BODY,firstLineIndent=0),gap=18)
  p.para('<b>Palavras-chave:</b> chatbot; WhatsApp; recuperação de informações; modelo de linguagem; atendimento.',ParagraphStyle('keywords',parent=BODY,firstLineIndent=0));p.finish()
 
  p=Page(4,numbered=False);p.heading('SUMÁRIO',center=True)
  contents=[('1 INTRODUÇÃO',5),('2 ARQUITETURA E TECNOLOGIAS',6),('3 FUNCIONAMENTO DA EXTENSÃO',7),('4 RECUPERAÇÃO DE INFORMAÇÕES',8),('5 PROCESSAMENTO DE ÁUDIO',9),('6 HISTÓRICO E CONTROLE DO ATENDIMENTO',10),('7 VALIDAÇÃO E OPERAÇÃO',11),('8 LIA: IDENTIDADE E FLUXO DE ATENDIMENTO',12),('9 ESCOPO DAS RESPOSTAS',13),('10 CONSIDERAÇÕES FINAIS',14),('REFERÊNCIAS',15)]
- if not args.sem_painel: contents.append(('APÊNDICE A - PAINEL DE ATENDIMENTO',16))
+ if not args.sem_painel:
+  contents=contents[:-2]+[('10 PAINEL DE ATENDIMENTO',14),('11 CONSIDERAÇÕES FINAIS',19),('REFERÊNCIAS',20)]
  for title,page in contents:
   c.setFont('TimesNewRoman',12);c.drawString(LEFT,p.y-12,title);c.drawRightString(W-RIGHT,p.y-12,str(page))
   start=LEFT+pdfmetrics.stringWidth(title,'TimesNewRoman',12)+8;end=W-RIGHT-24
@@ -118,7 +123,7 @@ if not args.somente_painel:
  d.add(String(WIDTH/2,10,'A resposta retorna pela API e pela extensão',fontName='TimesNewRoman',fontSize=10,textAnchor='middle'))
  p.figure(d,'Arquitetura geral do chatbot',1)
  p.para('A Figura 1 apresenta o caminho de entrada e saída das mensagens. O atendimento aceita texto e áudio, mantém um histórico curto por conversa e combina respostas controladas com recuperação de informações. O uso de áudio foi incluído para permitir que a pessoa escolha como se comunicar, sem pressupor dificuldades de leitura ou escrita.')
- p.para('O sistema tem função de orientação. Ele não realiza matrícula, não confirma vagas disponíveis e não atende automaticamente todas as conversas. A ativação ocorre em uma conversa individual escolhida no painel da extensão, inclusive no modo de teste em “Mensagem para você”.')
+ p.para('O sistema tem função de orientação. Ele não realiza matrícula nem confirma vagas disponíveis. O modo painel acompanha novas mensagens em conversas individuais e permite que a equipe assuma o atendimento quando necessário. Grupos e a conversa da própria conta ficam excluídos. Há também um modo de teste individual para conferência do protótipo.')
  p.finish()
 
  p=Page(6,'2 ARQUITETURA E TECNOLOGIAS')
@@ -133,17 +138,17 @@ if not args.somente_painel:
  ('Extração','pypdf e BeautifulSoup','Ler o edital e extrair o conteúdo do portal.'),
  ('Persistência','JSON e SQLite','Guardar a base, respostas e histórico curto.'),
  ('Transcrição','faster-whisper small','Converter o áudio recebido em texto na CPU.'),
- ('Voz','edge-tts e Francisca','Gerar a resposta falada no serviço da Microsoft.'),
+ ('Voz','Kokoro e Dora','Gerar a resposta falada no computador.'),
  ('Conversão','PyAV e Opus','Preparar áudio em OGG/Opus para o envio.')
  ],[87,111,WIDTH-198],'Quadro 1 - Componentes e tecnologias do protótipo')
  p.para('A comunicação entre extensão e API utiliza requisições HTTP com dados em JSON. JavaScript e Python executam a lógica do sistema; HTML e CSS definem a apresentação do painel. Os arquivos JSON armazenam documentos e dados de turmas, enquanto SQLite registra o histórico e as respostas em cache.')
- p.para('A voz atual depende de um serviço online. O modelo de linguagem, a busca e a transcrição são executados no computador. Essa distinção é importante porque a geração da fala envia o texto preparado da resposta à Microsoft (Rany2, s.d.).')
+ p.para('O modelo de linguagem, a busca, a transcrição e a síntese de voz são executados no computador. Kokoro utiliza a voz feminina Dora, com processamento na CPU. Essa escolha evita enviar o texto da resposta a um serviço externo de síntese e preserva os recursos da GPU para o modelo de linguagem (HEXGRAD, s.d.; THEWH1TEAGLE, s.d.).')
  p.finish()
 
  p=Page(7,'3 FUNCIONAMENTO DA EXTENSÃO')
- p.para('Quando o usuário ativa o atendimento, a extensão verifica a API e identifica a conversa aberta. As mensagens já existentes são registradas como ponto de partida. Novas mensagens são verificadas aproximadamente a cada cinco segundos, embora o navegador possa atrasar essa frequência em segundo plano. A leitura e o envio utilizam WA-JS, biblioteca que opera sobre a sessão do WhatsApp Web (WPPConnect, s.d.).')
+ p.para('Quando o atendimento é ativado, a extensão verifica a API e registra um ponto de partida para a leitura das conversas. No modo painel, novas mensagens de contatos individuais são identificadas sem exigir a seleção manual de cada chat. Mensagens anteriores à ativação não recebem respostas retroativas. A leitura e o envio utilizam WA-JS, biblioteca que opera sobre a sessão do WhatsApp Web (WPPCONNECT, s.d.).')
  d=Drawing(WIDTH,126);step=(WIDTH+12)/4;bw=step-12
- for i,text in enumerate(['Mensagem nova\nna conversa ativa','Filtros e IDs\nEvitar duplicação','POST /message\nConsulta à API','Resposta\nTexto ou áudio']):
+ for i,text in enumerate(['Mensagem nova\nem chat individual','Filtros e IDs\nEvitar duplicação','POST /message\nConsulta à API','Resposta\nTexto ou áudio']):
   x=i*step;node(d,x,40,bw,55,text)
   if i<3:arrow(d,x+bw,67.5,x+step,67.5)
  p.figure(d,'Processamento de uma mensagem pela extensão',2)
@@ -171,29 +176,29 @@ if not args.somente_painel:
  p.finish()
 
  p=Page(9,'5 PROCESSAMENTO DE ÁUDIO')
- p.para('O processamento começa quando a extensão identifica uma mensagem de voz na conversa ativada. O áudio é baixado e enviado à API, que utiliza faster-whisper para obter a transcrição. Essa etapa ocorre no computador, na CPU (SYSTRAN, s.d.).')
+ p.para('O processamento começa quando a extensão identifica uma mensagem de voz em uma conversa individual acompanhada. O áudio é enviado à API, que utiliza faster-whisper para obter a transcrição. Essa etapa ocorre no computador, na CPU (SYSTRAN, s.d.).')
  d=Drawing(WIDTH,184);xs=[0,159,318];bw=WIDTH-318
  for x,text in zip(xs,['Áudio recebido\nWhatsApp Web','Whisper small\nTranscrição local','Pergunta em texto\nRegras ou RAG']):node(d,x,115,bw,53,text)
  for i in range(2):arrow(d,xs[i]+bw,141.5,xs[i+1],141.5)
- for x,text in zip(xs,['Resposta no WhatsApp\nMensagem de voz','PyAV\nÁudio OGG/Opus','Microsoft Francisca\nSíntese online']):node(d,x,23,bw,53,text)
+ for x,text in zip(xs,['Resposta no WhatsApp\nMensagem de voz','PyAV\nÁudio OGG/Opus','Kokoro / Dora\nSíntese local']):node(d,x,23,bw,53,text)
  arrow(d,318+bw/2,115,318+bw/2,76);arrow(d,318,49.5,159+bw,49.5);arrow(d,159,49.5,bw,49.5)
  p.figure(d,'Transcrição da entrada e geração da resposta falada',5)
- p.para('Depois de preparar a resposta, a API envia seu texto ao serviço de voz do Microsoft Edge, usando a biblioteca comunitária edge-tts. A voz configurada é pt-BR-FranciscaNeural. A biblioteca não exige instalar o navegador Edge nem fornecer uma chave de API, mas depende de internet e da disponibilidade do serviço (Rany2, s.d.).')
- p.para('O áudio gerado é convertido para OGG/Opus e enviado como mensagem de voz. Antes da síntese, o texto passa por ajustes para retirar emojis e preparar a leitura de horários. As grafias Educa, EdUCA e EDUCA são convertidas para “educa” somente no texto falado, para reduzir a leitura do nome como sigla.')
+ p.para('Depois de preparar a resposta, a API gera a fala com Kokoro e a voz Dora. O processamento é local, sem chamada ao serviço de voz da Microsoft. O fraseado conserva a pontuação da resposta, mantém saudações curtas com a frase seguinte e introduz pausas entre ideias. A velocidade pode ser ajustada sem alterar o conteúdo da orientação (HEXGRAD, s.d.; THEWH1TEAGLE, s.d.).')
+ p.para('O áudio é convertido para OGG/Opus e enviado como mensagem de voz. Emojis são retirados e horários são preparados para leitura. As grafias Educa, EdUCA e EDUCA são normalizadas apenas no texto falado. Durante uma geração demorada, a extensão pode enviar um aviso pré-gravado com teclado sintético discreto, reduzido durante a fala. As respostas principais permanecem sem ruído de fundo.')
  p.para('O protótipo aceita áudios de até três minutos e 12 MB. Ruído, sotaque, nomes e números podem prejudicar a transcrição. Quando não entende o conteúdo, o bot pede uma repetição. Essas condições precisam ser avaliadas com mensagens reais antes de ampliar o atendimento.')
  p.finish()
 
  p=Page(10,'6 HISTÓRICO E CONTROLE DO ATENDIMENTO')
- p.para('A extensão atende apenas a conversa ativada e registra os identificadores das mensagens já processadas. As saídas do próprio bot também são identificadas para evitar que ele responda a si mesmo. Um resultado de envio incerto não é repetido automaticamente.')
+ p.para('A extensão registra os identificadores das mensagens processadas em cada conversa. As saídas do próprio bot também são reconhecidas, para impedir que ele responda a si mesmo. No modo painel, os estados do atendimento separam as conversas com a Lia das que dependem da equipe. Um resultado de envio incerto não é repetido automaticamente.')
  d=Drawing(WIDTH,158);xs=[0,165,330];bw=WIDTH-330
- for x,text in zip(xs,['Bot pausado','Ativar a conversa\nAPI e sessão válidas','Bot ativo\nNovas mensagens']):node(d,x,101,bw,44,text)
+ for x,text in zip(xs,['Bot pausado','Conectar extensão\nAPI e sessão válidas','Bot ativo\nNovas mensagens']):node(d,x,101,bw,44,text)
  arrow(d,bw,123,165,123);arrow(d,165+bw,123,330,123)
- node(d,165,12,WIDTH-165,51,'Pausa pelo usuário, erro ou pedido de atendente\nO envio não é repetido automaticamente')
+ node(d,165,12,WIDTH-165,51,'Pausa geral, erro ou intervenção da equipe\nO envio incerto não é repetido automaticamente')
  arrow(d,330+bw/2,101,330+bw/2,63);arrow(d,165,37.5,bw/2,37.5);arrow(d,bw/2,37.5,bw/2,101)
  p.figure(d,'Ativação e pausa do atendimento',6)
  p.para('A API conserva até quatro pares de pergunta e resposta por conversa. As últimas duas trocas podem ser enviadas à Phi como contexto. Isso permite compreender perguntas como “E qual o horário?” depois de uma mensagem que identifica a turma. O histórico é separado por conversa e não é usado para treinar o modelo.')
- p.para('O acesso à API ocorre em 127.0.0.1:8765 e exige a chave local no cabeçalho X-Educa-Token. A chave fica nos arquivos de configuração da API e da extensão. Os registros são guardados em SQLite, com política de retenção de 24 horas e limpeza na inicialização e no processamento das mensagens. Perguntas e respostas permanecem legíveis no banco local; os áudios recebidos são processados em memória.')
- p.para('Quando o usuário pede um atendente, o bot envia a resposta de pausa e interrompe novas mensagens automáticas. Essa ação não notifica uma pessoa nem atribui a conversa a alguém da equipe. A extensão também pode ser pausada pelo painel ou interrompida por erro.')
+ p.para('A comunicação entre extensão e API exige uma chave de acesso mantida nos arquivos de configuração. Os registros são guardados em SQLite, com retenção de vinte e quatro horas para o histórico finalizado. Perguntas e respostas permanecem legíveis no banco; o acesso a esses arquivos precisa ser controlado pela instituição.')
+ p.para('Quando a pessoa pede um atendente, a conversa é direcionada à fila de espera da equipe. Ao assumir o chat, o atendente interrompe novas respostas da Lia naquela conversa e pode continuar por texto ou áudio. A pausa geral da extensão suspende o acompanhamento. Os estados e as ações da equipe são apresentados no capítulo sobre o painel.')
  p.para('A integração utiliza a sessão do WhatsApp Web e não a API oficial de atendimento. Mudanças na plataforma podem afetar o funcionamento, e existe risco de restrição da conta. O piloto precisa de acompanhamento antes de uso institucional.')
  p.finish()
 
@@ -202,16 +207,16 @@ if not args.somente_painel:
  p.table(['Verificação','Resultado e alcance'],[
  ('API e regras','Autenticação, menu da Lia, dez perguntas gerais, limites de atendimento e perguntas combinadas verificados localmente.'),
  ('Histórico','Continuidade, isolamento entre conversas, limite de quatro trocas e repetição da mesma requisição.'),
- ('Áudio','Síntese Microsoft, leitura de arquivos OGG/Opus e transcrição verificadas nos componentes locais.'),
+ ('Áudio','Síntese local Kokoro, leitura de OGG/Opus, cache de voz e transcrição verificados nos componentes locais.'),
  ('WhatsApp real','Respostas em texto e comportamento da voz relatados pelo usuário; a sessão real não é inteiramente coberta pelos testes locais.')
  ],[101,WIDTH-101],'Quadro 2 - Verificações realizadas no protótipo')
- p.para('Na máquina utilizada, a GTX 1650 possui 4 GB de memória. A configuração testada carregou a Phi-4 Mini inteira na GPU, mantendo contexto de 3.072 tokens e ocupação de aproximadamente 2,9 GB na medição do driver. O indicador 100% GPU do Ollama corresponde ao carregamento integral do modelo nessa memória (Ollama, s.d.). A transcrição permaneceu na CPU.')
- p.para('Uma comparação curta de geração registrou cerca de 20 tokens por segundo no modo misto CPU/GPU e 41 tokens por segundo com o modelo inteiro na GPU. O resultado descreve aquele teste e não garante a mesma latência para mensagens longas. Respostas resolvidas por regras não dependem da execução da Phi.')
- p.para('Para atender, o computador, o Ollama, a API e o WhatsApp Web precisam estar disponíveis. A API é iniciada por INICIAR.cmd, e a conversa é ativada no painel da extensão. Pausar a extensão interrompe as respostas automáticas; encerrar a API desliga o processamento.')
+ p.para('A execução do modelo de linguagem pode utilizar a GPU quando o ambiente possui memória e suporte compatíveis. Caso contrário, o processamento pode ocorrer na CPU ou ser dividido entre os dois recursos. O Ollama gerencia esse carregamento conforme a configuração disponível. A busca e as regras continuam independentes da execução da Phi; a transcrição e a síntese Kokoro utilizam a CPU no perfil documentado.')
+ p.para('O tempo de resposta depende do tamanho da pergunta, da quantidade de mensagens agrupadas, da recuperação dos documentos e dos recursos disponíveis. O uso de GPU pode acelerar a geração de texto, mas não elimina o tempo das outras etapas. A reutilização de uma resposta falada já preparada evita uma nova síntese quando o conteúdo e o perfil de voz são iguais.')
+ p.para('Para atender, o ambiente de processamento, o Ollama, a API e a sessão do WhatsApp Web precisam estar disponíveis. A extensão conecta as conversas ao painel, onde a equipe acompanha as filas. Pausar a extensão interrompe novas respostas automáticas; encerrar a API desliga o processamento. Parâmetros de instalação podem ser ajustados sem alterar o fluxo do atendimento.')
  p.finish()
 
  p=Page(12,'8 LIA: IDENTIDADE E FLUXO DE ATENDIMENTO')
- p.para('A assistente virtual recebe o nome Lia. A escolha se deve a um nome curto, que remete a “ler” e soa muito bem em voz sintetizada. O nome identifica a assistente no painel da extensão e na apresentação inicial ao público. A voz feminina Francisca permanece como recurso de síntese, sem imitar uma pessoa da equipe.')
+ p.para('A assistente virtual recebe o nome Lia. A escolha se deve a um nome curto, que remete a “ler” e soa muito bem em voz sintetizada. O nome identifica a assistente no painel da extensão e na apresentação inicial ao público. A voz feminina Dora é um recurso de síntese, sem imitar uma pessoa da equipe.')
  p.para('Uma saudação simples por texto, como “Oi” ou “Bom dia”, recebe uma apresentação e um menu numerado com dez assuntos. A pessoa pode escolher um número para obter uma resposta estática ou escrever sua pergunta livremente. O menu não é uma etapa obrigatória: perguntas completas são respondidas diretamente.')
  d=Drawing(WIDTH,171)
  node(d,139,125,174,34,'Nova mensagem para Lia')
@@ -238,30 +243,36 @@ if not args.somente_painel:
  ('Novas turmas e projetos','Orientar o acompanhamento das divulgações oficiais, sem inventar datas.')
  ],[109,WIDTH-109],'Quadro 3 - Assuntos atendidos pela Lia')
  p.para('Questões que exigem análise ou decisão da equipe, informações internas, fatos não confirmados oficialmente e situações de atendimento individualizado devem ser encaminhadas como orientação para procurar a equipe da EdUCA. Lia não decide exceções, consulta cadastros, resolve recursos ou avalia condições pessoais de saúde.')
- p.para('Essa orientação não significa que a assistente tenha chamado alguém. Um pedido explícito de atendente pausa as respostas automáticas, mas a versão atual não envia uma notificação nem atribui a conversa a uma pessoa.')
+ p.para('No painel, pedidos de atendente e situações que dependem de análise da equipe entram na fila de espera. A continuidade depende de uma pessoa assumir a conversa. Lia não toma decisões institucionais, não identifica um funcionário disponível e não garante um prazo de resposta humana.')
  p.finish()
 
- p=Page(14,'10 CONSIDERAÇÕES FINAIS')
+ if not args.sem_painel:
+  from painel_abnt import build_panel
+  build_panel(globals(),first_page=14)
+
+ p=Page(14 if args.sem_painel else 19,('10' if args.sem_painel else '11')+' CONSIDERAÇÕES FINAIS')
  p.para('O protótipo reúne, em uma mesma conversa, respostas por regras, consulta a documentos e comunicação por áudio. A extensão permite aproveitar a sessão do WhatsApp Web, enquanto a API concentra a base e o processamento. Essa organização facilita a revisão das respostas e a atualização das fontes sem alterar toda a interface do navegador.')
  p.para('As regras são úteis para informações que podem ser conferidas diretamente, como gratuidade, faixa de idade e horário de uma turma. A recuperação de trechos amplia o conjunto de perguntas que pode ser respondido, mas o modelo ainda pode acrescentar detalhes desnecessários ou interpretar uma fonte de maneira inadequada. Por isso, as respostas precisam ser limitadas ao pedido atual e avaliadas com exemplos de uso real.')
- p.para('A disponibilidade de vagas e as datas de novas inscrições continuam dependendo de confirmação pela equipe. Uma previsão histórica do edital não permite anunciar inscrições abertas. Da mesma forma, a oferta de atendimento humano precisa corresponder a uma ação que o sistema realiza: nesta versão, o bot apenas pausa suas respostas, sem chamar um atendente automaticamente.')
- p.para('Antes de ampliar o piloto, é necessário acompanhar o funcionamento na sessão do Brave, revisar os resultados da transcrição e manter a base atualizada. Também devem ser avaliados o acesso aos registros locais e o envio do texto da resposta ao serviço de voz. Essas verificações ajudam a estabelecer o que o chatbot pode responder sozinho e o que deve permanecer sob responsabilidade da equipe.')
+ p.para('A disponibilidade de vagas e as datas de novas inscrições continuam dependendo de confirmação pela equipe. Uma previsão histórica do edital não permite anunciar inscrições abertas. O painel organiza os pedidos de atendimento humano e permite a continuidade pela equipe, mas não substitui a análise institucional nem garante que uma pessoa esteja disponível no momento da solicitação.')
+ p.para('Antes de ampliar o piloto, é necessário acompanhar a integração com o WhatsApp, revisar os resultados da transcrição e manter a base atualizada. Também devem ser avaliados o acesso aos registros e a clareza da voz. A síntese local reduz a dependência de serviços externos. Essas verificações ajudam a estabelecer o que a assistente pode responder sozinha e o que deve permanecer sob responsabilidade da equipe.')
  p.finish()
 
- p=Page(15,numbered=True);p.heading('REFERÊNCIAS',center=True)
+ p=Page(15 if args.sem_painel else 20,numbered=True);p.heading('REFERÊNCIAS',center=True)
  refs=[
   'BROWN, Dorian. <b>rank_bm25: a collection of BM25 algorithms in Python</b>. [S. l.], [s. d.]. Disponível em: https://github.com/dorianbrown/rank_bm25. Acesso em: 8 out. 2026.',
   'FASTAPI. <b>FastAPI</b>. [S. l.], [s. d.]. Disponível em: https://fastapi.tiangolo.com/. Acesso em: 8 out. 2026.',
   'FUNCITERN; UNIVERSIDADE DO ESTADO DO RIO GRANDE DO NORTE. <b>Edital nº 019/2026 FUNCITERN PROEX UERN: matrículas de alunos para o semestre 2026.2</b>. Natal, 23 jul. 2026. 7 p. Documento fornecido para a base do protótipo.',
+  'HEXGRAD. <b>Kokoro-82M: modelo e vozes de síntese</b>. [S. l.], [s. d.]. Disponível em: https://huggingface.co/hexgrad/Kokoro-82M. Acesso em: 13 out. 2026.',
+  'MEDEIROS, Juino. <b>Chatbot EdUCA: painel de atendimento</b>. Código-fonte e testes da branch feat/painel-atendimento, revisão 1e9af68. 2026. Disponível em: https://github.com/Juinuuuuw/chatbot-Educa. Consulta ao código local em: 14 out. 2026.',
   'OLLAMA. <b>FAQ</b>. [S. l.], [s. d.]. Disponível em: https://docs.ollama.com/faq. Acesso em: 8 out. 2026.',
-  'RANY2. <b>edge-tts</b>. [S. l.], [s. d.]. Disponível em: https://github.com/rany2/edge-tts. Acesso em: 8 out. 2026.',
   'SYSTRAN. <b>faster-whisper: faster Whisper transcription with CTranslate2</b>. [S. l.], [s. d.]. Disponível em: https://github.com/SYSTRAN/faster-whisper. Acesso em: 8 out. 2026.',
+  'THEWH1TEAGLE. <b>kokoro-onnx</b>. [S. l.], [s. d.]. Disponível em: https://github.com/thewh1teagle/kokoro-onnx. Acesso em: 13 out. 2026.',
   'UNIVERSIDADE DO ESTADO DO RIO GRANDE DO NORTE. <b>Portal UERN: notícias da tag Educa</b>. [S. l.], [s. d.]. Disponível em: https://portal.uern.br/blog/tag/educa/. Acesso em: 8 out. 2026.',
   'WPPCONNECT. <b>WA-JS: documentação da versão 4.6.1</b>. [S. l.], [s. d.]. Disponível em: https://wppconnect.io/wa-js/. Acesso em: 8 out. 2026.',
  ]
- for ref in refs:p.para(ref,REF,gap=12)
+ for ref in refs:p.para(ref,REF,gap=8)
  p.finish()
-if not args.sem_painel:
+if args.somente_painel:
  from painel_abnt import build_panel
- build_panel(globals(),first_page=1 if args.somente_painel else 16)
+ build_panel(globals(),first_page=1)
 c.save();print(OUT)

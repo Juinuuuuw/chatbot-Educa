@@ -1,20 +1,15 @@
-# Fontes do documento ABNT
+# Fontes do relatório ABNT
 
-O documento principal usa Times New Roman, corpo 12, entrelinhas de 1,5, texto justificado e recuo inicial de 1,25 cm. As margens são de 3 cm à esquerda e no topo e de 2 cm à direita e na base. Diagramas e quadros são produzidos junto com o PDF.
+O relatório usa Times New Roman, corpo 12, entrelinhas de 1,5, texto justificado e recuo inicial de 1,25 cm. As margens são de 3 cm à esquerda e no topo e de 2 cm à direita e na base. Diagramas e quadros são gerados junto com o PDF.
 
-O arquivo `build_documento_abnt.py` conserva os capítulos da versão individual originalmente documentada. O conteúdo opcional do painel está inteiramente em `painel_abnt.py`, acrescentado como Apêndice A após as referências. O painel ocupa as páginas 16 a 20, sem alterar a numeração dos capítulos anteriores.
+O título é LIA COMO ASSISTENTE VIRTUAL DA EDUCA. A identificação na capa e na folha de rosto corresponde à Unidade Curricular de Extensão da professora Glaucia. A autoria do código permanece na lista de referências.
 
-Para gerar os PDFs, use Python com ReportLab instalado e as fontes Times New Roman disponíveis em `C:/Windows/Fonts`:
+O painel integra o capítulo 10, antes das considerações finais e das referências. Seu conteúdo fica em `painel_abnt.py` para facilitar a manutenção editorial, sem se apresentar como apêndice no relatório. O documento descreve Kokoro/Dora e o encaminhamento ao atendimento humano, sem fixar endereço ou porta de implantação.
+
+Para gerar o relatório, use Python com ReportLab e as fontes Times New Roman disponíveis no Windows:
 
 ```powershell
 python docs/fontes/build_documento_abnt.py
-python docs/fontes/build_documento_abnt.py --somente-painel
 ```
 
-Para retirar o painel do documento, execute:
-
-```powershell
-python docs/fontes/build_documento_abnt.py --sem-painel
-```
-
-Essa opção retira o apêndice e sua entrada no sumário, mantendo o restante do conteúdo. Não é necessário apagar o código da seção nem reorganizar os capítulos. Os resultados são gravados em `outputs`. A opção `--saida caminho.pdf` permite escolher outro destino sem substituir o arquivo padrão.
+A opção `--sem-painel` gera uma versão sem esse capítulo e ajusta o sumário e as páginas seguintes. `--somente-painel` gera um recorte do capítulo. `--saida caminho.pdf` permite escolher outro destino. Os PDFs antigos do painel separado registram a versão anterior; o documento principal atualizado é `Chatbot_Educa_ABNT.pdf`.
