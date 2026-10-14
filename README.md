@@ -29,10 +29,21 @@ Para conferir as regras sem iniciar a API nem enviar mensagens ao WhatsApp:
 - Ollama e `phi4-mini:latest`: geração de respostas.
 - BM25: recuperação do edital e de notícias; sem embeddings.
 - faster-whisper small: transcrição local na CPU.
-- Chatterbox PT-BR: síntese local com uma referência feminina sintética do protótipo.
+- Kokoro/Dora: síntese local na CPU, com fraseado moderado e avisos de espera pré-gravados.
+- Chatterbox PT-BR (alternativa opcional): síntese local com uma referência feminina sintética do protótipo.
 - SQLite: histórico curto e controle de repetição.
 
 Não exige chave paga de LLM ou de síntese. Após a instalação e os downloads, a voz padrão é gerada no computador, sem enviar o texto à Microsoft. A integração com WhatsApp Web é não oficial.
+
+## Voz atual: Kokoro/Dora
+
+A voz padrão desta branch é `kokoro`, com `pf_dora`, executada inteiramente na CPU. A GPU fica disponível para a Phi. Neste computador, `kokoro_models` aponta para `D:/IA_Projetos/EdUCA/modelos/kokoro`; os pesos não entram no Git. O modelo ONNX ocupa cerca de 326 MB, mais 28 MB de vozes.
+
+O perfil usa velocidade `0.96`, pausa entre ideias `0.30` segundo e pausa entre trechos de uma frase longa `0.14` segundo. A pontuação orienta a entonação; não há um controle garantido de “sorriso”. `kokoro_speech.py` preserva todas as palavras e separa ideias, mantendo saudações curtas com a próxima frase. Respostas principais não recebem ruídos. Kokoro também reutiliza respostas idênticas por até 24 horas; mudanças de perfil invalidam o cache.
+
+Os seis avisos de espera foram regenerados com Dora e misturados com teclado sintético irregular e ambiente discreto. O fundo é reduzido durante a fala e fica pelo menos 24 dB abaixo do nível médio da voz. São arquivos prontos, sem geração de som no atendimento. `build_waiting_ambience.py --source PASTA_LIMPA` permite recriar a mistura a partir de cópias limpas. Não usa gravações externas, serviços ou downloads. As cópias limpas desta máquina estão no disco D.
+
+Em 13/10/2026, os avisos levaram 0,9–1,7 segundo para gerar com o modelo aquecido; o primeiro levou 6,3 segundos incluindo carregamento. Uma resposta curta levou 5,1 segundos. São medidas de síntese na CPU, sem contar transcrição, RAG, LLM ou envio ao WhatsApp. As medições de Chatterbox abaixo registram o perfil anterior.
 
 ## Instalação no Windows
 
@@ -43,15 +54,14 @@ python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 ollama pull phi4-mini:latest
 .\.venv\Scripts\python.exe configurar.py
-.\.venv\Scripts\python.exe setup_assets.py
-.\.venv\Scripts\python.exe setup_chatterbox.py
+.\.venv\Scripts\python.exe setup_assets.py --kokoro
 ```
 
-Os últimos passos baixam modelos de áudio e conferem a integridade da biblioteca WA-JS. Chatterbox usa um ambiente Python separado em `.venv-chatterbox`, PyTorch com CUDA e pesos específicos para português brasileiro, com revisões fixadas. Os arquivos ocupam vários GB e não são incluídos no Git. O código do carregador específico é preservado em `vendor/chatterbox`, com licença e indicação da origem. A referência atual em `assets/lia-reference.wav` foi extraída de uma amostra sintética gerada anteriormente no protótipo. Não é a voz de um integrante da equipe.
+O último passo baixa modelos de áudio e confere a integridade da biblioteca WA-JS. Para instalar a alternativa Chatterbox, execute `setup_chatterbox.py`. Chatterbox usa um ambiente Python separado em `.venv-chatterbox`, PyTorch com CUDA e pesos específicos para português brasileiro, com revisões fixadas. Os arquivos ocupam vários GB e não são incluídos no Git. O código do carregador específico é preservado em `vendor/chatterbox`, com licença e indicação da origem. A referência atual em `assets/lia-reference.wav` foi extraída de uma amostra sintética gerada anteriormente no protótipo. Não é a voz de um integrante da equipe.
 
 A versão 0.4.0 usa outra referência e orientação de voz, com leve ajuste de presença, corte de graves e volume consistente. A síntese continua local. Os seis áudios em `assets/waiting` foram pré-gerados com esse perfil. Quando uma resposta falada demora mais de 1,5 segundo após a consulta à API começar, a extensão envia um único aviso de espera e depois a resposta final. Respostas rápidas não recebem aviso. O aviso não marca a pergunta como respondida e seus identificadores são filtrados para não provocar um novo atendimento no modo de teste para você. Pausar impede novos envios.
 
-A voz usa a GPU em uma etapa separada da Phi: a API descarrega a Phi do Ollama antes da síntese, e o processo de voz libera sua memória ao concluir. A geração pode acrescentar espera. Piper, Kokoro, Supertonic e Microsoft permanecem como alternativas opcionais no código.
+Na alternativa Chatterbox, a voz usa a GPU em uma etapa separada da Phi: a API descarrega a Phi do Ollama antes da síntese, e o processo de voz libera sua memória ao concluir. A geração pode acrescentar espera. Piper, Chatterbox, Supertonic e Microsoft permanecem como alternativas opcionais ao Kokoro no código.
 
 No teste desta máquina (GTX 1650, 4 GB de VRAM, cerca de 8 GB de RAM), uma amostra de 8,16 segundos usou aproximadamente 2,5 GB de VRAM. Após o primeiro aquecimento, foram medidos 19,94 segundos para carregar o modelo e 36,59 segundos para gerar a fala, além da inicialização do processo. O tempo varia com o texto e a memória disponível. Áudios de respostas idênticas são reutilizados por até 24 horas, com limite de 128 arquivos, para evitar nova síntese. Esses arquivos ficam em `data/voice-cache`, fora do Git.
 

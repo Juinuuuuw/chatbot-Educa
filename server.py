@@ -365,9 +365,13 @@ def synthesize_wav(text, selected_voice=None):
         import onnxruntime as ort
         if kokoro_voice is None:
             options=ort.SessionOptions(); options.intra_op_num_threads=4; options.inter_op_num_threads=1
-            model=ort.InferenceSession(str(ROOT/'models/kokoro/kokoro-v1.0.onnx'),sess_options=options,providers=['CPUExecutionProvider'])
-            kokoro_voice=Kokoro.from_session(model,str(ROOT/'models/kokoro/voices-v1.0.bin'))
-        samples,rate=kokoro_voice.create(speech,voice=selected_voice or config.get('tts_voice','pf_dora'),speed=config.get('tts_speed',1.0),lang='pt-br',sentence_pause=0.22,clause_pause=0.1)
+            folder=pathlib.Path(config.get('kokoro_models',ROOT/'models/kokoro'))
+            model=ort.InferenceSession(str(folder/'kokoro-v1.0.onnx'),sess_options=options,providers=['CPUExecutionProvider'])
+            kokoro_voice=Kokoro.from_session(model,str(folder/'voices-v1.0.bin'))
+        from kokoro_speech import synthesize
+        samples,rate=synthesize(kokoro_voice,speech,voice=selected_voice or config.get('tts_voice','pf_dora'),
+            speed=config.get('tts_speed',0.96),sentence_pause=config.get('tts_sentence_pause',0.3),
+            clause_pause=config.get('tts_clause_pause',0.14))
         with wave.open(buf,'wb') as wav:
             wav.setnchannels(1);wav.setsampwidth(2);wav.setframerate(rate)
             wav.writeframes((np.clip(samples,-1,1)*32767).astype(np.int16).tobytes())
@@ -379,13 +383,17 @@ def synthesize_wav(text, selected_voice=None):
 
 def speak(text):
     cache=None
-    if config.get('tts_engine')=='chatterbox':
+    if config.get('tts_engine') in ('chatterbox','kokoro'):
         VOICE_CACHE.mkdir(exist_ok=True)
         reference=ROOT/'assets/lia-reference.wav'
         if not reference.exists():reference=ROOT/'models/chatterbox-pt-br/reference-female.wav'
-        settings={k:config.get(k) for k in ['tts_engine','tts_voice','chatterbox_exaggeration','chatterbox_cfg_weight']}
+        settings={k:config.get(k) for k in ['tts_engine','tts_voice','tts_speed','tts_sentence_pause','tts_clause_pause','kokoro_models','chatterbox_exaggeration','chatterbox_cfg_weight']}
         settings['reference_mtime']=reference.stat().st_mtime_ns if reference.exists() else 0
-        settings['voice_revision']='presence-v2'
+        settings['voice_revision']='phrasing-v3'
+        if config.get('tts_engine')=='kokoro':
+            for filename in ('kokoro-v1.0.onnx','voices-v1.0.bin'):
+                path=pathlib.Path(config.get('kokoro_models',ROOT/'models/kokoro'))/filename
+                settings[filename]=path.stat().st_mtime_ns if path.exists() else 0
         key=hashlib.sha256((speech_text(text)+json.dumps(settings,sort_keys=True)).encode()).hexdigest()
         cache=VOICE_CACHE/(key+'.ogg')
         files=sorted(VOICE_CACHE.glob('*.ogg'),key=lambda p:p.stat().st_mtime)
@@ -431,7 +439,7 @@ def transcribe(encoded):
 @app.get('/health')
 def health():
     engine=config.get('tts_engine','kokoro')
-    voice_files={'chatterbox':ROOT/'models/chatterbox-pt-br/t3_pt_br.safetensors','supertonic':ROOT/'models/supertonic-3/onnx/vocoder.onnx','kokoro':ROOT/'models/kokoro/kokoro-v1.0.onnx','piper':ROOT/'models/pt_BR-faber-medium.onnx'}
+    voice_files={'chatterbox':ROOT/'models/chatterbox-pt-br/t3_pt_br.safetensors','supertonic':ROOT/'models/supertonic-3/onnx/vocoder.onnx','kokoro':pathlib.Path(config.get('kokoro_models',ROOT/'models/kokoro'))/'kokoro-v1.0.onnx','piper':ROOT/'models/pt_BR-faber-medium.onnx'}
     return {'ok':True,'supports_batches':True,'supports_panel_auto':True,'model':config['model'],'chunks':len(chunks),'voice':engine=='edge' or voice_files.get(engine,ROOT/'missing-model').exists(),'voice_requires_internet':engine=='edge','tts_engine':engine,'tts_voice':config.get('tts_voice','F2' if engine=='supertonic' else 'pf_dora'),'transcription':(ROOT/'models/whisper-small/model.bin').exists()}
 
 @app.get('/waiting-audio')

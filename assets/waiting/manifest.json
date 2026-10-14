@@ -3,36 +3,42 @@
     "id": "wait-01",
     "file": "waiting-01.ogg",
     "text": "Um instante, vou ver aqui.",
-    "sha256": "f6112868caee9e2befd507d76f6712ce4d9b51ef3ffaee5ace4887565e97e824"
+    "sha256": "86a9f38a070eb0ff2334a4878f4fe7fa94525e3c9ef94ed41c2fa7a9349aa83b",
+    "ambience": "synthetic-keyboard-v1"
   },
   {
     "id": "wait-02",
     "file": "waiting-02.ogg",
     "text": "Aguarde um pouquinho, estou preparando sua resposta.",
-    "sha256": "ab8ff7ca90345646a4a29a00002675ba8f0692f78c4e6ad0d59c608881f4058e"
+    "sha256": "120564ed6c967f63ba5973b400ac6a1069a1c7735552450b175641baaf546744",
+    "ambience": "synthetic-keyboard-v1"
   },
   {
     "id": "wait-03",
     "file": "waiting-03.ogg",
     "text": "Um momento, por favor.",
-    "sha256": "a16bb4cbfab37bd4293e7625d878304dab4f2e2325cb8fd960ceaa90ca799eee"
+    "sha256": "bdfe3e7332037e682f1c8ade8639b348781143ffb1c61705e80afea0ca4a0571",
+    "ambience": "synthetic-keyboard-v1"
   },
   {
     "id": "wait-04",
     "file": "waiting-04.ogg",
     "text": "Já recebi sua mensagem. Vou conferir aqui.",
-    "sha256": "6718dbc6fc3c10505afc11affc4a12d6c22afd3990315a03c13596fa9f156ff7"
+    "sha256": "b26afd19c6194dd23828a8e57af40e1edeb5250ec951504222d8129370c671b7",
+    "ambience": "synthetic-keyboard-v1"
   },
   {
     "id": "wait-05",
     "file": "waiting-05.ogg",
     "text": "Aguarde, vou conferir.",
-    "sha256": "72c12073fbce008392ef2c631bd33487d5573bb8ccb4300a4b547efbfbfaf3ea"
+    "sha256": "0fad475444f723650f11ffaa8c724769c146246f84d574142a2a485f541efccf",
+    "ambience": "synthetic-keyboard-v1"
   },
   {
     "id": "wait-06",
     "file": "waiting-06.ogg",
     "text": "Vou verificar com cuidado. Aguarde um momento.",
-    "sha256": "a2a26f32c6d936851283122fe14a13306055b10e46fbb8d3265e26f418f67d7e"
+    "sha256": "2a1dd2fd0127d2d4ae082d35b471b6b855b663c550ab5eb92410a9374260d8db",
+    "ambience": "synthetic-keyboard-v1"
   }
 ]

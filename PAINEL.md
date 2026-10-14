@@ -52,3 +52,7 @@ Testes de API cobrem autenticação, origem, acesso por ticket de uso único, de
 Esses testes não enviam mensagens reais. O teste de ponta a ponta no WhatsApp exige carregar a nova extensão, conectar todas as conversas e receber uma mensagem de teste.
 
 A descoberta usa a [listagem individual da WA-JS](https://wppconnect.io/wa-js/functions/chat.list.html), com filtro adicional por tipo de conversa e identidade da própria conta. Os testes também conferem contatos novos, mensagens antigas não lidas, mensagens recebidas no segundo de ativação e exclusão de grupos/status.
+
+## Voz e avisos de espera
+
+A Lia usa Kokoro/Dora local na CPU. As respostas principais têm ritmo moderado e pausas entre ideias, sem fundo. Os avisos pré-gravados usam teclado sintético e ambiente baixo, reduzido durante a fala; não aumentam a latência da síntese. O modelo desta máquina está no disco D. Chatterbox permanece como alternativa; os detalhes de instalação estão no README.

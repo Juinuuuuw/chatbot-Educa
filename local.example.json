@@ -1,7 +1,10 @@
 {
   "model": "phi4-mini:latest",
-  "tts_engine": "chatterbox",
-  "tts_voice": "pt-br-female-clear",
+  "tts_engine": "kokoro",
+  "tts_voice": "pf_dora",
+  "tts_speed": 0.96,
+  "tts_sentence_pause": 0.3,
+  "tts_clause_pause": 0.14,
   "chatterbox_device": "cuda",
   "chatterbox_exaggeration": 0.55,
   "chatterbox_cfg_weight": 0.5

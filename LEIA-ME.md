@@ -2,13 +2,13 @@
 
 Desde a versão 0.2.0, saudações simples por texto recebem um menu com dez dúvidas gerais e respostas estáticas. Perguntas completas são respondidas diretamente. Áudios recebem respostas faladas, sem menu. A Lia orienta a procura da equipe em questões individuais, decisões, informações internas e fatos sem confirmação oficial. Seu nome foi escolhido por ser curto, remeter a “ler” e soar muito bem em voz sintetizada.
 
-API com regras, RAG por busca lexical BM25, Phi-4 Mini, transcrição local Whisper small e voz feminina local Chatterbox PT-BR. O RAG não usa embeddings e não foi treinado com conversas pessoais. A tabela do edital foi conferida visualmente e transcrita em 20 registros de turmas, totalizando 431 vagas originalmente previstas. Perguntas sobre turmas usam esses registros, para evitar mistura com notícias de anos anteriores.
+API com regras, RAG por busca lexical BM25, Phi-4 Mini, transcrição local Whisper small e voz feminina local Kokoro/Dora. O RAG não usa embeddings e não foi treinado com conversas pessoais. A tabela do edital foi conferida visualmente e transcrita em 20 registros de turmas, totalizando 431 vagas originalmente previstas. Perguntas sobre turmas usam esses registros, para evitar mistura com notícias de anos anteriores.
 
 ## Personalidade e voz
 
 Na versão 0.4.0, o perfil recebeu ajustes de referência, presença e volume. Há seis áudios de espera pré-gravados: um deles é enviado enquanto uma resposta falada mais lenta é preparada. Respostas rápidas não recebem aviso; o aviso não consome a pergunta e não se repete para a mesma sequência.
 
-A voz padrão agora é Chatterbox PT-BR, gerada no computador com uma referência feminina sintética gerada anteriormente no protótipo. A API usa um ambiente separado para a voz e descarrega a Phi da GPU antes da síntese. Ao concluir, o processo de voz libera sua memória. Novas respostas podem levar cerca de um minuto nesta máquina; áudios de respostas iguais são reutilizados por até 24 horas, com limite de 128 arquivos em `data/voice-cache`. Consulte o README para instalação em outro computador.
+A voz padrão é Kokoro/Dora, gerada localmente na CPU, com velocidade 0,96 e pausas entre ideias. Os pesos desta máquina ficam no disco D. Os seis avisos de espera usam a mesma voz, com teclado sintético e ambiente discreto, reduzidos enquanto ela fala. As respostas principais ficam limpas. Respostas idênticas são reutilizadas por até 24 horas, com limite de 128 arquivos. Chatterbox continua disponível como alternativa. Consulte o README para configuração e medições.
 
 As respostas usam um tom acolhedor, frases simples e, quando combinar com a conversa, um emoji discreto. Telefone e e-mail aparecem quando solicitados. As informações sobre prazos encerrados e a falta de confirmação de vagas atuais continuam sendo respeitadas. Esse tom vale para as regras e para o Phi-4 Mini.
 

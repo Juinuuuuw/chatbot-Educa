@@ -6,19 +6,24 @@ EXT=ROOT/'extension'; EXT.mkdir(exist_ok=True)
 def download(url,path):
     if path.exists(): return
     r=requests.get(url,timeout=120); r.raise_for_status(); path.write_bytes(r.content)
-parser=argparse.ArgumentParser(description='Baixa Whisper e WA-JS. Vozes antigas são opcionais.')
+parser=argparse.ArgumentParser(description='Baixa Whisper e WA-JS. Kokoro pode ser instalado separadamente.')
 parser.add_argument('--all-voices',action='store_true')
+parser.add_argument('--kokoro',action='store_true')
+parser.add_argument('--kokoro-models',type=pathlib.Path)
 options=parser.parse_args()
+if options.kokoro or options.all_voices:
+    local=json.loads((ROOT/'local.json').read_text(encoding='utf-8')) if (ROOT/'local.json').exists() else {}
+    kokoro_dir=options.kokoro_models or pathlib.Path(local.get('kokoro_models',MODELS/'kokoro'))
+    kokoro_dir.mkdir(parents=True,exist_ok=True)
+    kokoro_base='https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1/'
+    for filename in ['kokoro-v1.0.onnx','voices-v1.0.bin']:
+        download(kokoro_base+filename,kokoro_dir/filename)
+    print('Voz Kokoro pronta',flush=True)
 if options.all_voices:
     base='https://huggingface.co/rhasspy/piper-voices/resolve/main/pt/pt_BR/faber/medium/'
     for f in ['pt_BR-faber-medium.onnx','pt_BR-faber-medium.onnx.json','MODEL_CARD']:
         download(base+f,MODELS/f)
     print('Voz baixada',flush=True)
-    kokoro_dir=MODELS/'kokoro'; kokoro_dir.mkdir(exist_ok=True)
-    kokoro_base='https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1/'
-    for filename in ['kokoro-v1.0.onnx','voices-v1.0.bin']:
-        download(kokoro_base+filename,kokoro_dir/filename)
-    print('Voz Kokoro baixada',flush=True)
     snapshot_download('supertone-oss-archive/supertonic-3',revision='aafc6e32416a594460b32413efc49d7fe4ce6d46',local_dir=str(MODELS/'supertonic-3'),allow_patterns=['onnx/*','voice_styles/*','LICENSE','README.md'])
     print('Vozes femininas Supertonic baixadas',flush=True)
 snapshot_download('Systran/faster-whisper-small',local_dir=str(MODELS/'whisper-small'),allow_patterns=['model.bin','config.json','tokenizer.json','vocabulary.*'])
