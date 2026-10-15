@@ -7,11 +7,16 @@ const BATCH_WAIT_MS=5000;
 const BASE=typeof EDUCA_BASE==='string'?EDUCA_BASE:'http://127.0.0.1:8765';
 async function api(path,data,signal) {
   const timeout=AbortSignal.timeout(data?360000:8000);
-  const r=await fetch(BASE+path,{method:data?'POST':'GET',headers:{'X-Educa-Token':EDUCA_TOKEN,...(data?{'Content-Type':'application/json'}:{})},body:data?JSON.stringify(data):undefined,signal:signal?AbortSignal.any([signal,timeout]):timeout});
+  let r;
+  try {r=await fetch(BASE+path,{method:data?'POST':'GET',headers:{'X-Educa-Token':EDUCA_TOKEN,...(data?{'Content-Type':'application/json'}:{})},body:data?JSON.stringify(data):undefined,signal:signal?AbortSignal.any([signal,timeout]):timeout});}
+  catch(e) {
+    if(e.name==='AbortError')throw e;
+    throw new Error(e.name==='TimeoutError'?'A API demorou para responder. Confira a janela de inicialização e tente novamente.':'A API da Lia está desligada ou inacessível. Abra INICIAR.cmd na pasta do painel e mantenha a janela aberta. Depois clique em Conectar todas as conversas. O botão da extensão não inicia a API.');
+  }
   if(!r.ok) {
     let detail;try {detail=(await r.json()).detail;}catch{}
     if(Array.isArray(detail)) detail=detail.map(d=>`${(d.loc||[]).join('.')}: ${d.msg||'Campo inválido'}`).join('; ');
-    throw new Error(`API HTTP ${r.status}: ${typeof detail==='string'?detail:'Não foi possível processar a solicitação.'}`);
+    throw new Error(r.status===401?'A chave da extensão não corresponde à API. Use a extensão da mesma pasta da API, execute configurar.py e recarregue a extensão.':`API HTTP ${r.status}: ${typeof detail==='string'?detail:'Não foi possível processar a solicitação.'}`);
   }
   return r.json();
 }
@@ -225,6 +230,7 @@ chrome.runtime.onMessage.addListener((m,sender,reply)=> {
   if(!fromPopup) {reply({ok:false,error:'Origem não autorizada'});return;}
   (async()=> {
     if(m.type==='status') {const s=await chrome.storage.local.get(['enabled','label','lastStatus','self']);reply(s);}
+    else if(m.type==='api-status') {try {const health=await api('/health');reply({ok:true,panel:!!health.supports_panel_auto});}catch(e){reply({ok:false,error:errorText(e)});}}
     else if(m.type==='start') {await start(!!m.self);reply({ok:true});}
     else if(m.type==='stop') {await pause();reply({ok:true});}
     else if(m.type==='panel-add') {await panelAdd();reply({ok:true});}

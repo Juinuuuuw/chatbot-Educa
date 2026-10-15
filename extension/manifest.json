@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Lia — assistente da EdUCA",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Painel de atendimento para conversas individuais do WhatsApp, com Lia, RAG local e voz.",
   "permissions": ["storage", "scripting", "alarms"],
   "host_permissions": ["https://web.whatsapp.com/*", "http://127.0.0.1:8765/*", "http://127.0.0.1:8766/*"],

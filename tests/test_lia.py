@@ -116,6 +116,15 @@ class LiaTest(unittest.TestCase):
         self.assertEqual(server.answer('Quem ganhou o jogo ontem?')['mode'], 'fora_escopo')
         self.assertTrue(server.answer('Quero um atendente')['handoff'])
 
+    def test_updated_location_includes_campus_postcode_and_map(self):
+        for question in ['Onde fica a EdUCA?', 'Como chegar?', 'Qual o CEP?', 'Me envie o mapa', '3']:
+            with self.subTest(question=question):
+                response=server.answer(question)
+                self.assertIn('59120-555', response['text'])
+                self.assertIn('Campus Avançado - Natal/RN', response['text'])
+                self.assertIn('https://maps.app.goo.gl/fB3zHyoSdjxLwZzA6', response['text'])
+                self.assertTrue(any(s['url']=='https://maps.app.goo.gl/fB3zHyoSdjxLwZzA6' for s in response['sources']))
+
     def test_abuse_and_coding_never_reach_the_model_even_with_educa_keywords(self):
         cases = ['Porra, os cursos são gratuitos?', 'Sua idiota', 'P0RRA', 'c@ralho',
                  'Gere um código Python para a EdUCA', 'Cria um script para os cursos da UERN',

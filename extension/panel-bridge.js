@@ -17,9 +17,9 @@ async function panelStart() {
   const tabs=await chrome.tabs.query({active:true,currentWindow:true});
   const tab=tabs[0];
   if(!tab?.url?.startsWith('https://web.whatsapp.com/'))throw new Error('Abra a aba do WhatsApp Web para conectar o painel. Não precisa selecionar uma conversa.');
-  await ensure(tab.id);
   const health=await api('/health');
   if(!health.supports_panel_auto)throw new Error('Reinicie a API desta branch antes de conectar todas as conversas.');
+  await ensure(tab.id);
   const started=Math.floor(Date.now()/1000);
   const chats=(await page(tab.id,'individuals')).filter(c=>individualJid(c.jid));
   const state=await chrome.storage.local.get('panelContacts');

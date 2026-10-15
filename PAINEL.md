@@ -4,12 +4,12 @@ Nesta branch, o painel funciona com a extensão e a API local. A conexão com o 
 
 ## Neste computador
 
-1. Abra `INICIAR-LOCAL.cmd` nesta pasta. A cópia foi configurada na porta **8766**, separada da API original na porta 8765.
+1. Abra `INICIAR.cmd` (ou `INICIAR-LOCAL.cmd`) nesta pasta e mantenha a janela aberta. O botão da extensão conecta ao serviço, mas não inicia a API. A cópia foi configurada na porta **8766**, separada da API original na porta 8765.
 2. No Brave, abra `brave://extensions`. Desative a extensão antiga para não ter duas versões respondendo à mesma conversa. Ative o modo de desenvolvedor e carregue a pasta `extension` desta cópia.
 3. Mantenha o WhatsApp Web aberto e conectado à sua conta. No popup da extensão, clique em **Conectar todas as conversas**. Não é necessário selecionar um contato: as novas mensagens individuais serão detectadas e cadastradas automaticamente. Grupos, comunidades, canais, status/listas de transmissão e a conversa da própria conta ficam excluídos.
 4. O painel abre autenticado. Peça a um contato para enviar uma nova mensagem de texto ou áudio. O chat aparecerá no painel, com a Lia atendendo. Para reabrir, use **Abrir painel da EdUCA** na extensão. O acesso dura oito horas; a chave da API não aparece na interface nem é salva no navegador do painel.
 
-A versão 0.6.0 da extensão descobre conversas individuais existentes e contatos novos. O registro no painel acontece quando há uma mensagem nova após a ativação. Mensagens anteriores, mesmo não lidas, não disparam respostas retroativas. O WhatsApp pode estar aberto em outra conversa; não é preciso clicar no contato recebido. O modo de seleção manual continua disponível dentro de **Teste individual e seleção manual** no popup.
+A versão 0.6.1 da extensão descobre conversas individuais existentes e contatos novos. O registro no painel acontece quando há uma mensagem nova após a ativação. Mensagens anteriores, mesmo não lidas, não disparam respostas retroativas. O WhatsApp pode estar aberto em outra conversa; não é preciso clicar no contato recebido. O modo de seleção manual continua disponível dentro de **Teste individual e seleção manual** no popup.
 
 Para ver somente o visual: `http://127.0.0.1:8766/panel/#demo=1`. Os contatos e as respostas dessa demonstração são fictícios; suas ações não enviam mensagens.
 
@@ -56,3 +56,5 @@ A descoberta usa a [listagem individual da WA-JS](https://wppconnect.io/wa-js/fu
 ## Voz e avisos de espera
 
 A Lia usa Kokoro/Dora local na CPU. As respostas principais têm ritmo moderado e pausas entre ideias, sem fundo. Os avisos pré-gravados usam teclado sintético e ambiente baixo, reduzido durante a fala; não aumentam a latência da síntese. O modelo desta máquina está no disco D. Chatterbox permanece como alternativa; os detalhes de instalação estão no README.
+
+Se a API estiver desligada, o popup informa como iniciá-la e preserva o erro até uma nova tentativa. O diagnóstico de disponibilidade não altera as filas nem ativa o atendimento. O endereço e o link de mapa usados nas respostas ficam em `data/location.json`, separados dos documentos históricos.

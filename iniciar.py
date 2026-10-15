@@ -21,7 +21,7 @@ def main():
                 status = json.load(response)
             if status.get('ok') and status.get('model') == config['model'] and 'chunks' in status:
                 print('A API do Educa ja esta funcionando. Nao precisa abrir outra janela.')
-                print('Pode continuar o teste na extensao do Brave.')
+                print('Pode conectar o atendimento pela extensao do navegador.')
                 return 0
         except (OSError, ValueError):
             pass
@@ -29,7 +29,7 @@ def main():
         try:
             probe.bind(('127.0.0.1', config.get('port',8765)))
         except OSError:
-            print('A porta 8765 esta ocupada, mas a API do Educa nao respondeu corretamente.')
+            print(f"A porta {config.get('port',8765)} esta ocupada, mas a API do Educa nao respondeu corretamente.")
             print('Informe esta mensagem no chat para verificar o servico existente.')
             return 1
     from server import app

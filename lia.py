@@ -1,6 +1,13 @@
 """Menu e limites de atendimento da Lia; informações gerais conferidas no edital."""
 import re
 import unicodedata
+import json
+from pathlib import Path
+
+LOCATION=json.loads((Path(__file__).resolve().parent/'data/location.json').read_text(encoding='utf-8'))
+LOCATION_TEXT=('A EdUCA fica na '+LOCATION['campus']+'.\n'+LOCATION['address']+
+               '\nComo chegar: '+LOCATION['maps_url'])
+LOCATION_SOURCE={'title':LOCATION['source'],'url':LOCATION['maps_url'],'date':LOCATION['updated_at']}
 
 TOPICS = (
     'Cursos e atividades', 'Inscrição e documentos', 'Dias, horários e local',
@@ -88,7 +95,7 @@ def in_scope(text):
                           r'musculacao|praticas corporais|inscri|matricul|vaga|horario|'
                           r'certific|document|gratuit|taxa|mensalidade|turma|aulas|'
                           r'quem pode|posso participar|contato|telefone|secretaria|'
-                          r'qual.*idade|\d+\s*anos|onde fica', normalize(text)))
+                          r'qual.*idade|\d+\s*anos|onde fica|\bcep\b|\bmapa\b|como chegar', normalize(text)))
 
 def topics_for(text):
     n = normalize(text)
@@ -99,7 +106,7 @@ def topics_for(text):
         4: r'gratuit|\bgratis\b|de graca|mensalidade|\b(?:pago|pagar|custa|preco|taxas?)\b',
         5: r'horario|\bdias?\b.*(?:aulas|atividade)|(?:aulas|atividade).*\bdias?\b|que horas',
         6: r'\bvagas?\b',
-        7: r'onde.*(?:acontec|aulas|atividade|fica|localiz)|endereco|local das',
+        7: r'onde.*(?:acontec|aulas|atividade|fica|localiz)|endereco|local das|\bcep\b|\bmapa\b|como chegar',
         8: r'document|\bcpf\b|comprovante|o que.*levar',
         9: r'certific',
         10: r'acompan|divulg|novas turmas|novos cursos|novos projetos|redes sociais',
@@ -139,8 +146,7 @@ def static_answer(topic, courses, schedule=None):
         return ('Não consigo confirmar se há vagas disponíveis agora. A quantidade do edital é histórica. '
                 'Procure a equipe da EdUCA para consultar as vagas da atividade que você deseja.')
     if topic == 7:
-        return ('As aulas previstas no edital acontecem no Complexo Cultural da UERN, na Avenida Doutor João Medeiros Filho, '
-                '3419, Potengi, Natal. Outros projetos podem ter locais diferentes, informados na divulgação de cada atividade.')
+        return LOCATION_TEXT
     if topic == 8:
         return ('O edital pede cópias de identidade, CPF e comprovante de residência. Para menores, também pede os documentos '
                 'do responsável. Vagas de baixa renda exigem comprovação do CadÚnico; servidores penais e familiares '

@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 from rank_bm25 import BM25Okapi
 from contextlib import closing
 from contextvars import ContextVar
-from lia import MENU, MENU_QUERIES, MENU_TOPIC_GROUPS, TEAM, HANDOFF_OFFER, OUT_OF_SCOPE, OFFENSIVE, blocked_request, invalid_generated_reply, greeting as lia_greeting, menu_choice, restricted, in_scope, topics_for, static_answer, fully_covered
+from lia import MENU, MENU_QUERIES, MENU_TOPIC_GROUPS, TEAM, HANDOFF_OFFER, OUT_OF_SCOPE, OFFENSIVE, LOCATION_TEXT, LOCATION_SOURCE, blocked_request, invalid_generated_reply, greeting as lia_greeting, menu_choice, restricted, in_scope, topics_for, static_answer, fully_covered
 
 ROOT=pathlib.Path(__file__).resolve().parent
 DATA=ROOT/'data'; DATA.mkdir(exist_ok=True)
@@ -116,7 +116,7 @@ def rule(q):
     schedule=course_schedule(q)
     if schedule: add(schedule,'edital-turma-horario')
     if re.search(r'\b(contato|telefone|e-?mail|whatsapp)\b',n): add('Você pode falar com a equipe por aqui: WhatsApp (84) 3232-6120 ou educa.natal@uern.br.','edital-contato')
-    if re.search(r'\b(endereco|localiza|onde fica)\b',n): add('A EdUCA fica no Complexo Cultural da UERN, no Campus de Natal: Avenida Doutor João Medeiros Filho, 3419, Potengi. A secretaria fica na sala D1.','edital-endereco')
+    if re.search(r'\b(endereco|localizacao|onde fica|como chegar|mapa|cep)\b',n): add(LOCATION_TEXT,'localizacao')
     return ('\n\n'.join(replies),'+'.join(kinds)) if replies else (None,None)
 
 def needs_retrieval(q):
@@ -213,7 +213,7 @@ def _answer(q,history=None,is_audio=False):
         if choice==len(MENU_QUERIES):
             q=MENU_QUERIES[-1]
         else:
-            return {'text':'\n\n'.join(static_answer(t,courses) for t in MENU_TOPIC_GROUPS[choice-1]),'mode':'faq','sources':[{'title':'Edital 019/2026','url':'uern-educa-0192026edital.pdf','date':'2026-07-23'}],'handoff':False}
+            return {'text':'\n\n'.join(static_answer(t,courses) for t in MENU_TOPIC_GROUPS[choice-1]),'mode':'faq','sources':[{'title':'Edital 019/2026','url':'uern-educa-0192026edital.pdf','date':'2026-07-23'}]+([LOCATION_SOURCE] if 7 in MENU_TOPIC_GROUPS[choice-1] else []),'handoff':False}
     confirmation=re.sub(r'[^a-z\s]','',norm(q)).strip()
     offered=history and ('posso pausar minhas respostas' in history[-1]['answer'] or HANDOFF_OFFER in history[-1]['answer'])
     if confirmation in ['sim','sim quero','quero sim','sim por favor','pode pausar','pode chamar','pode sim','pode me encaminhar'] and offered:
@@ -233,7 +233,7 @@ def _answer(q,history=None,is_audio=False):
     # Idade e turma específicas usam os registros conferidos, não uma resposta geral.
     if faq_topics and not eligible and fully_covered(q):
         responses=[static_answer(t,courses,course_schedule(q) if t==5 else None) for t in faq_topics]
-        return {'text':'\n\n'.join(responses),'mode':'faq','sources':[] if faq_topics==[9] else [{'title':'Edital 019/2026','url':'uern-educa-0192026edital.pdf','date':'2026-07-23'}],'handoff':False}
+        return {'text':'\n\n'.join(responses),'mode':'faq','sources':([] if faq_topics==[9] or faq_topics==[7] else [{'title':'Edital 019/2026','url':'uern-educa-0192026edital.pdf','date':'2026-07-23'}])+([LOCATION_SOURCE] if 7 in faq_topics else []),'handoff':False}
     if not in_scope(q):
         return {'text':OUT_OF_SCOPE,'mode':'fora_escopo','sources':[],'handoff':False}
     if re.search(r'horario|\bdias?\b|que horas',n) and not re.search(r'teatro|musculacao|ballet|danca|praticas corporais|informatica|inscri|matricul|prazo',n):
@@ -241,12 +241,15 @@ def _answer(q,history=None,is_audio=False):
     fixed,kind=rule(q)
     if fixed and (kind=='handoff' or not needs_retrieval(q)):
         sources=[] if kind in [None,'handoff'] else [{'title':'Edital 019/2026','url':'uern-educa-0192026edital.pdf','date':'2026-07-23'}]
+        if kind and 'localizacao' in kind:
+            if kind=='localizacao':sources=[]
+            sources.append(LOCATION_SOURCE)
         return {'text':fixed,'mode':'regra','sources':sources,'handoff':kind=='handoff'}
     hits=retrieve(q)
     if not hits and not fixed: return {'text':'Não encontrei essa informação nas fontes oficiais da minha base. Procure a equipe da EdUCA para confirmar.','mode':'sem_fonte','sources':[],'handoff':False}
     today=datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=-3))).date().isoformat()
     context='\n\n'.join(f"FONTE {i+1}: {c['title']} — {c['date']}, página {c.get('page','site')}\n{c['text']}" for i,c in enumerate(hits))
-    if fixed: context+='\n\nFATOS CONFERIDOS DO EDITAL:\n'+fixed
+    if fixed: context+='\n\nFATOS CONFERIDOS PARA O ATENDIMENTO:\n'+fixed
     if faq_topics:
         context+='\n\nRESPOSTAS CONFERIDAS E LIMITES DE CONFIRMAÇÃO:\n'+'\n'.join(static_answer(t,courses,course_schedule(q) if t==5 else None) for t in faq_topics)
     system=f'''Você é Lia, a assistente virtual da EdUCA/UERN em Natal. Hoje é {today}.
@@ -294,6 +297,7 @@ As fontes serão registradas separadamente pela API. Não inclua referências nu
     if not text: raise RuntimeError('Modelo retornou resposta vazia')
     sources=[source(c) for c in hits]
     if fixed: sources.append({'title':'Edital 019/2026: fatos conferidos','url':'uern-educa-0192026edital.pdf','date':'2026-07-23'})
+    if kind and 'localizacao' in kind:sources.append(LOCATION_SOURCE)
     if invalid_generated_reply(text):
         return {'text':OUT_OF_SCOPE,'mode':'fora_escopo','sources':[],'handoff':False}
     return {'text':text,'mode':'rag_phi4','sources':sources,'handoff':False}
