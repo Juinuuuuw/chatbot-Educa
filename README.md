@@ -6,7 +6,7 @@ Protótipo de atendimento para a EdUCA/UERN Natal pelo WhatsApp Web. Combina reg
 
 ## Atendimento da Lia
 
-Lia é um nome curto, remete a “ler” e soa muito bem em voz sintetizada. Uma saudação simples por texto apresenta um menu com dez opções: cursos, inscrição, participação, gratuidade, horários, vagas, local, documentos, certificado e divulgação de novas turmas. A seleção numérica recebe uma resposta estática. Perguntas completas são respondidas diretamente, sem obrigar o usuário a passar pelo menu.
+Lia é um nome curto, remete a “ler” e soa muito bem em voz sintetizada. Uma saudação simples por texto apresenta cinco opções: cursos e atividades; inscrição e documentos; dias, horários e local; gratuidade e participação; e Atendente, sempre por último. As quatro primeiras recebem respostas estáticas agrupadas; a última solicita o encaminhamento humano. Perguntas completas são respondidas diretamente, sem obrigar o usuário a passar pelo menu.
 
 Mensagens de áudio são transcritas e respondidas em áudio, sem apresentar o menu, inclusive quando contêm apenas uma saudação. Perguntas gerais reconhecidas usam as respostas conferidas; questões mais específicas podem consultar o RAG e a Phi-4 Mini. Perguntas combinadas preservam os assuntos identificados.
 
@@ -88,6 +88,12 @@ Na versão 0.2.1, o painel informa a etapa que falhou e preserva o detalhe receb
 O último erro fica no armazenamento local da extensão, com etapa, descrição e horário. Esses dados não são enviados a um serviço de monitoramento. Para testar o fluxo da extensão com navegador e WhatsApp simulados, use Node.js e execute `node tests/test_extension.cjs`.
 
 Na versão 0.3.1, falhas de conexão ou de protocolo do serviço Microsoft durante a síntese não descartam a resposta pronta: a Lia envia uma resposta por texto, com um aviso curto, e continua ativa. A voz Francisca permanece selecionada e é tentada normalmente nas próximas mensagens de áudio. Falhas na transcrição, no modelo ou no envio ao WhatsApp continuam sendo tratadas separadamente; um envio incerto não é repetido automaticamente.
+
+## Limites de assunto e linguagem
+
+Ofensas reconhecidas, pedidos de geração de código e outras tarefas fora do atendimento da EdUCA recebem uma resposta curta com a oferta “Gostaria de falar com um atendente?”. A verificação ocorre antes das FAQs e da chamada ao modelo, inclusive em transcrições e sequências de mensagens. Mencionar EdUCA ou um curso não libera esses pedidos. Regras de linguagem verificam limites de palavras para não confundir “computação” com ofensas; dúvidas sobre cursos de programação continuam permitidas.
+
+A oferta não encaminha automaticamente a conversa. Uma confirmação como “Sim, por favor” ou a escolha “5. Atendente” solicita a intervenção humana; no painel, o chat entra em aguardando equipe. Uma negativa mantém a Lia disponível. A instrução do modelo reforça o escopo, e uma verificação posterior rejeita trechos de código e ofensas reconhecidas na saída. São verificações de padrões e instruções, sem garantia de detectar toda forma de evasão; novos casos do piloto devem integrar os testes.
 
 ## Base de conhecimento
 

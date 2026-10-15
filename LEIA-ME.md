@@ -1,6 +1,6 @@
 # Lia — assistente virtual da EdUCA
 
-Desde a versão 0.2.0, saudações simples por texto recebem um menu com dez dúvidas gerais e respostas estáticas. Perguntas completas são respondidas diretamente. Áudios recebem respostas faladas, sem menu. A Lia orienta a procura da equipe em questões individuais, decisões, informações internas e fatos sem confirmação oficial. Seu nome foi escolhido por ser curto, remeter a “ler” e soar muito bem em voz sintetizada.
+Desde a versão 0.2.0, saudações simples por texto recebem um menu com cinco opções agrupadas, sendo “Atendente” a última. Perguntas completas são respondidas diretamente. Áudios recebem respostas faladas, sem menu. A Lia orienta a procura da equipe em questões individuais, decisões, informações internas e fatos sem confirmação oficial. Seu nome foi escolhido por ser curto, remeter a “ler” e soar muito bem em voz sintetizada.
 
 API com regras, RAG por busca lexical BM25, Phi-4 Mini, transcrição local Whisper small e voz feminina local Kokoro/Dora. O RAG não usa embeddings e não foi treinado com conversas pessoais. A tabela do edital foi conferida visualmente e transcrita em 20 registros de turmas, totalizando 431 vagas originalmente previstas. Perguntas sobre turmas usam esses registros, para evitar mistura com notícias de anos anteriores.
 
@@ -81,3 +81,5 @@ Para testar com outro telefone, abra uma conversa individual com esse contato, d
 Siga o `README.md` para criar o ambiente `.venv`, baixar os modelos e gerar uma chave local própria. O Ollama deve ter `phi4-mini:latest` instalado. As medições de GPU acima descrevem a máquina do piloto; não são requisitos de hardware.
 
 Fontes: https://portal.uern.br/blog/tag/educa/ e edital 019/2026 fornecido pelo usuário. Consulte os URLs de cada artigo em `data/documents.json`.
+
+Pedidos fora do escopo, como gerar código, e ofensas reconhecidas recebem uma recusa breve com oferta de atendente. Essa barreira também vale para áudio transcrito e mensagens agrupadas. A pessoa confirma o encaminhamento respondendo “sim” à oferta ou escolhendo a última opção do menu.

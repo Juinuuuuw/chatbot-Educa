@@ -3,15 +3,15 @@ import re
 import unicodedata
 
 TOPICS = (
-    'Cursos e atividades', 'Como se inscrever', 'Quem pode participar',
-    'Gratuidade', 'Dias e horários', 'Vagas disponíveis', 'Local das aulas',
-    'Documentos para inscrição', 'Certificado', 'Novas turmas e projetos',
+    'Cursos e atividades', 'Inscrição e documentos', 'Dias, horários e local',
+    'Gratuidade e participação', 'Atendente',
 )
+MENU_TOPIC_GROUPS = ((1,), (2, 8), (5, 7), (4, 3), ())
 MENU_QUERIES = (
-    'Quais cursos e atividades são oferecidos?', 'Como faço para me inscrever?',
-    'Quem pode participar?', 'As atividades são gratuitas?', 'Quais são os dias e horários das aulas?',
-    'Ainda há vagas disponíveis?', 'Onde acontecem as aulas?', 'Quais documentos preciso levar?',
-    'Recebo certificado?', 'Como acompanho novas turmas e projetos?',
+    'Quais cursos e atividades são oferecidos?',
+    'Como faço para me inscrever e quais documentos preciso levar?',
+    'Quais são os dias e horários das aulas e onde acontecem as aulas?',
+    'As atividades são gratuitas? Quem pode participar?', 'Quero falar com um atendente',
 )
 MENU = ('Sou a Lia, assistente virtual da EdUCA. 😊\n'
         'Posso ajudar com estas dúvidas:\n\n' +
@@ -20,6 +20,11 @@ MENU = ('Sou a Lia, assistente virtual da EdUCA. 😊\n'
 TEAM = ('Essa questão precisa ser avaliada pela equipe da EdUCA. '
         'Procure a equipe para receber orientação sobre o seu caso. '
         'Eu não consigo decidir ou consultar informações internas por aqui.')
+HANDOFF_OFFER = 'Gostaria de falar com um atendente?'
+OUT_OF_SCOPE = ('Posso ajudar com informações sobre os cursos e atividades da EdUCA. '
+                'Não posso realizar esse tipo de pedido por aqui. ' + HANDOFF_OFFER)
+OFFENSIVE = ('Vamos manter uma conversa respeitosa. Posso ajudar com informações da EdUCA. '
+             + HANDOFF_OFFER)
 
 def normalize(text):
     return ''.join(c for c in unicodedata.normalize('NFD', text.lower())
@@ -35,8 +40,36 @@ def greeting(text):
     return None
 
 def menu_choice(text):
-    match = re.fullmatch(r'\s*(?:op[cç][aã]o\s*)?(10|[1-9])[.!?]?\s*', text, re.I)
+    match = re.fullmatch(r'\s*(?:op[cç][aã]o\s*)?([1-5])[.!?]?\s*', text, re.I)
     return int(match[1]) if match else None
+
+
+def blocked_request(text):
+    """Barreira anterior às FAQs e ao modelo, também aplicada às transcrições."""
+    n = ''.join(c for c in normalize(text) if unicodedata.category(c) != 'Cf')
+    # Reconhece abreviações e trocas comuns sem confundir 'computação' com ofensas.
+    tokens = re.findall(r'[a-z0-9@$!]+', n)
+    substitutions = str.maketrans({'0':'o','1':'i','3':'e','4':'a','5':'s','7':'t','@':'a','$':'s','!':'i'})
+    plain = ' '.join(t.translate(substitutions) for t in tokens)
+    if re.search(r'\b(porra|merda|caralho|puta|puto|foder|foda|fodase|fdp|vtnc|tnc|vsf|'
+                 r'cu|cuzao|bosta|babaca|idiota|imbecil|burro|burra|arrombad[oa]|'
+                 r'estupid[oa]|inutil)\b', plain):
+        return 'ofensa'
+    task = r'\b(?:ger[ae]|gerar|cri[ae]|criar|escreva|escrever|faz|faca|fazer|desenvolva|implemente|monte|programe|explique|corrija|produza)\b'
+    code = r'\b(?:codigo|script|software|algoritmo|api|site|aplicativo|programa de computador)\b'
+    if (re.search(task + r'[\s\S]{0,160}' + code, n)
+            or re.search(task + r'[\s\S]{0,80}\b(?:em|usando|com)\s+(?:python|javascript|html|css|sql|java|react)\b', n)
+            or re.search(r'\b(?:me de|me mande|me envie|me passa|me mostra|me mostre|ensine|quero|preciso de)\b[\s\S]{0,80}\b(?:um |uma |o |a )?(?:codigo (?:em|para|python|javascript)|script|algoritmo|software)\b', n)
+            or re.search(r'```|\b(?:ignore|desconsidere|esqueca)\b[\s\S]{0,90}\b(?:instrucoes|regras|prompt)\b|\b(?:system prompt|prompt do sistema|modo desenvolvedor|jailbreak)\b', n)
+            or re.search(task + r'[\s\S]{0,100}\b(?:poema|poesia|receita|piada|redacao|historia ficticia|musica|imagem|desenho|video)\b', n)
+            or re.search(r'\b(?:previsao do tempo|cotacao do dolar|capital da|capital de|resultado do jogo|quem ganhou o jogo)\b', n)):
+        return 'fora_escopo'
+    return None
+
+
+def invalid_generated_reply(text):
+    return blocked_request(text) == 'ofensa' or bool(re.search(
+        r'```|\bdef\s+\w+\s*\(|\bfunction\s*\w*\s*\(|<(?:script|html)\b|\b(?:print|console\.log)\s*\(|\bimport\s+(?:os|sys|requests)\b', text, re.I))
 
 def restricted(text):
     n = normalize(text)
