@@ -76,6 +76,9 @@ async function whatsappBridge(operation, ...args) {
     else if(typeof error?.reason==='string') message=error.reason;
     else {try {message=JSON.stringify(error);} catch {}}
     if(!message || ['{}','null','undefined'].includes(message)) message='O WhatsApp falhou nesta operação sem informar o motivo.';
-    return {ok:false,error:{name:error?.name || 'WhatsAppError',message:message.slice(0,500),code:String(error?.code || '')}};
+    // Esta falha acontece na preparação da mídia, antes de criar/enviar a mensagem.
+    const missingMediaPrep=operation==='send' && args[1]?.audio_base64 &&
+      /Cannot read properties of undefined \(reading ['"]prepRawMedia['"]\)/.test(message);
+    return {ok:false,error:{name:error?.name || 'WhatsAppError',message:message.slice(0,500),code:missingMediaPrep?'MEDIA_PREP_UNAVAILABLE':String(error?.code || '')}};
   }
 }

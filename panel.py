@@ -359,12 +359,16 @@ def create_panel(root, token, generate, transcribe):
     class Ack(Claim):
         ok: bool
         error: str = Field(default='',max_length=500)
+        preparation_failed: bool = False
 
     @panel.post('/bridge/ack', dependencies=[Depends(bridge)])
     def ack(body: Ack):
         with db() as c:
-            row=c.execute("SELECT chat FROM messages WHERE id=? AND status='sending'",(body.id,)).fetchone()
+            row=c.execute("SELECT chat,role FROM messages WHERE id=? AND status='sending'",(body.id,)).fetchone()
             if row:
+                if not body.ok and body.preparation_failed and body.id.startswith('wait:') and row['role']=='lia':
+                    c.execute("UPDATE messages SET status='cancelled' WHERE id=?",(body.id,))
+                    return {'ok':True}
                 c.execute('UPDATE messages SET status=? WHERE id=?',('sent' if body.ok else 'uncertain',body.id))
                 if not body.ok: c.execute("UPDATE chats SET state='waiting',revision=revision+1,reason=?,updated=? WHERE id=?",('Envio incerto: '+body.error,time.time(),row['chat']))
         return {'ok':True}

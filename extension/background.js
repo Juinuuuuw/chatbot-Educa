@@ -30,7 +30,7 @@ async function page(tabId,operation,args=[]) {
   const r=await chrome.scripting.executeScript({target:{tabId},world:'MAIN',func:whatsappBridge,args:[operation,...args]});
   const result=r[0]?.result;
   if(!result || typeof result.ok!=='boolean') throw new Error('Não foi possível obter o resultado do WhatsApp. Recarregue a aba e a extensão.');
-  if(!result.ok) throw new Error(errorText(result.error)+(result.error?.code?` (código ${result.error.code})`:''));
+  if(!result.ok) {const error=new Error(errorText(result.error)+(result.error?.code?` (código ${result.error.code})`:''));error.code=result.error?.code;throw error;}
   return result.value;
 }
 async function ensure(tabId) {
@@ -135,7 +135,11 @@ async function responseWithWaiting(s,body,job) {
             const previous=await chrome.storage.local.get('waitingBatches');
             await chrome.storage.local.set({waitingBatches:[...new Set([...(previous.waitingBatches||[]),body.message_id])].slice(-2000),lastWaitingAudio:clip.id});
           });
-        } catch(error) {const failure=new Error(errorText(error));failure.liaStage='Enviar áudio de espera';throw failure;}
+        } catch(error) {
+          if(error.code==='MEDIA_PREP_UNAVAILABLE') {
+            await chrome.storage.local.set({lastStatus:'O aviso de espera não pôde ser preparado. Continuo preparando a resposta.',lastAudioWarning:'Recarregue a extensão e o WhatsApp Web para atualizar o envio de áudio.'});
+          } else {const failure=new Error(errorText(error));failure.liaStage='Enviar áudio de espera';throw failure;}
+        }
       }
     }
   }

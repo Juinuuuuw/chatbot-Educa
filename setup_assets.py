@@ -28,7 +28,7 @@ if options.all_voices:
     print('Vozes femininas Supertonic baixadas',flush=True)
 snapshot_download('Systran/faster-whisper-small',local_dir=str(MODELS/'whisper-small'),allow_patterns=['model.bin','config.json','tokenizer.json','vocabulary.*'])
 print('Transcrição baixada',flush=True)
-meta=requests.get('https://registry.npmjs.org/@wppconnect/wa-js/4.6.1',timeout=30).json()
+meta=requests.get('https://registry.npmjs.org/@wppconnect/wa-js/4.7.1',timeout=30).json()
 r=requests.get(meta['dist']['tarball'],timeout=60); r.raise_for_status()
 actual=base64_digest=__import__('base64').b64encode(hashlib.sha512(r.content).digest()).decode()
 if meta['dist'].get('integrity') != 'sha512-'+actual: raise ValueError('Integridade do WA-JS inválida')
@@ -36,5 +36,5 @@ with tarfile.open(fileobj=io.BytesIO(r.content),mode='r:gz') as tf:
     for name in ['package/dist/wppconnect-wa.js','package/LICENSE']:
         item=tf.extractfile(name)
         (EXT/('wppconnect-wa.js' if name.endswith('.js') else 'LICENSE-WA-JS')).write_bytes(item.read())
-(EXT/'vendor.json').write_text(json.dumps({'package':'@wppconnect/wa-js','version':'4.6.1','integrity':meta['dist']['integrity']},indent=2))
+(EXT/'vendor.json').write_text(json.dumps({'package':'@wppconnect/wa-js','version':'4.7.1','integrity':meta['dist']['integrity']},indent=2))
 print('Biblioteca da extensão verificada',flush=True)

@@ -25,7 +25,7 @@ Para conferir as regras sem iniciar a API nem enviar mensagens ao WhatsApp:
 ## Tecnologias
 
 - Python, FastAPI e Uvicorn: API local em `127.0.0.1:8765`.
-- JavaScript, HTML e Manifest V3: extensão com WA-JS 4.6.1.
+- JavaScript, HTML e Manifest V3: extensão com WA-JS 4.7.1.
 - Ollama e `phi4-mini:latest`: geração de respostas.
 - BM25: recuperação do edital e de notícias; sem embeddings.
 - faster-whisper small: transcrição local na CPU.

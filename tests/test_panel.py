@@ -111,6 +111,19 @@ class PanelTest(unittest.TestCase):
             self.assertEqual(self.snapshot()['chats'][0]['state'],'waiting')
         self.assertEqual(self.client.get('/api/reports').json()['totals']['handoffs'],3)
 
+    def test_waiting_media_preparation_failure_preserves_final_reply(self):
+        self.incoming();self.batch()
+        with closing(sqlite3.connect(self.root/'data/panel.sqlite3')) as c, c:
+            c.execute("INSERT INTO messages SELECT 'wait:test',chat,role,'Um momento',audio,mime,status,created,revision FROM messages WHERE id='lia:batch-1'")
+        self.post('/bridge/claim',{'id':'wait:test'},True)
+        result=self.post('/bridge/ack',{'id':'wait:test','ok':False,'preparation_failed':True,'error':'prepRawMedia'},True)
+        self.assertEqual(result.status_code,200)
+        self.assertEqual(self.snapshot()['chats'][0]['state'],'lia')
+        queued=self.post('/bridge/poll',{},True).json()['queued']
+        self.assertEqual([r['id'] for r in queued],['lia:batch-1'])
+        with closing(sqlite3.connect(self.root/'data/panel.sqlite3')) as c:
+            self.assertEqual(c.execute("SELECT status FROM messages WHERE id='wait:test'").fetchone()[0],'cancelled')
+
     def test_human_audio_transcribed_without_llm_and_recording_queued(self):
         self.post('/api/action',{'chat':self.chat,'action':'take'})
         audio=base64.b64encode(b'fake test audio').decode()

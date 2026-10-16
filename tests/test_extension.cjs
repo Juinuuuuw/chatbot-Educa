@@ -6,7 +6,7 @@ const vm=require('node:vm');
 const {webcrypto}=require('node:crypto');
 const root=path.join(__dirname,'..','extension');
 
-function harness({self=false,fromMe=false,errorAt=null,error=null,httpStatus=200,voiceUnavailable=false,deferResponse=false,waitingUnavailable=false}={}) {
+function harness({self=false,fromMe=false,errorAt=null,error=null,httpStatus=200,voiceUnavailable=false,deferResponse=false,waitingUnavailable=false,waitingSendError=null}={}) {
   const state={enabled:true,run:'sessao-teste',tabId:1,jid:self?'self-test@c.us':'friend-test@lid',self,started:0,seen:[],ownTokens:[]};
   const sends=[];const bodies=[];let requests=0;let clock=Date.now();let nextTimer=0;let nextMessage=0;let releaseResponse;let waitingRequests=0;
   const timers=new Map();
@@ -18,7 +18,7 @@ function harness({self=false,fromMe=false,errorAt=null,error=null,httpStatus=200
     generateMessageID:async()=>{fail('prepare');nextMessage++;return {_serialized:'outgoing-test-'+nextMessage,id:'outgoing-token-'+nextMessage};},
     sendTextMessage:async(jid,text,options)=>{fail('send');sends.push({jid,text,options});return {id:{_serialized:'outgoing-test'}};},
     downloadMedia:async()=>({size:10}),
-    sendFileMessage:async(jid,data,options)=>{fail('send');sends.push({jid,data,options});return {id:{_serialized:options.messageId._serialized}};},
+    sendFileMessage:async(jid,data,options)=>{if(waitingSendError && data.endsWith('aviso-falso'))throw waitingSendError;fail('send');sends.push({jid,data,options});return {id:{_serialized:options.messageId._serialized}};},
   }};
   const browserPage=vm.createContext({WPP:wpp,window:{WPP:wpp},Map,FileReader:class{readAsDataURL(){this.result='data:audio/ogg;base64,YXVkaW8=';this.onload();}}});
   let context;
@@ -170,6 +170,17 @@ function harness({self=false,fromMe=false,errorAt=null,error=null,httpStatus=200
   noClip.releaseResponse();await noClipJob;
   assert.equal(noClip.sends.length,1,'Falha ao buscar aviso não deve impedir a resposta final');
   assert.equal(noClip.state.enabled,true);
+
+  for(const safe of [true,false]) {
+    const broken=harness({deferResponse:true,waitingSendError:safe?new TypeError("Cannot read properties of undefined (reading 'prepRawMedia')"):new Error('Conexão perdida após envio')});
+    broken.setMessages([{id:{_serialized:'prep-issue'},type:'ptt',t:1}]);
+    await broken.tick();broken.advance(5000);const work=broken.tick();await microtasks();
+    broken.advance(1500);broken.fireTimers();await microtasks();
+    broken.releaseResponse();await work;
+    assert.equal(broken.state.enabled,safe,'Somente falha comprovada de preparação permite continuar');
+    assert.equal(broken.sends.length,safe?1:0);
+    await broken.tick();assert.equal(broken.sends.length,safe?1:0,'Não repete aviso nem resposta');
+  }
 
   const waited=harness({deferResponse:true});
   waited.setMessages([{id:{_serialized:'already-waited'},type:'ptt',t:1}]);

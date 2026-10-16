@@ -159,7 +159,7 @@ async function panelTick() {
         await updatePanelContact(r.chat,c=>{c.seen=[...new Set([...c.seen,sent.id])].slice(-2000);});
         await api('/panel/bridge/ack',{id:r.id,ok:true});
       } catch(e) {
-        await api('/panel/bridge/ack',{id:r.id,ok:false,error:errorText(e)});
+        await api('/panel/bridge/ack',{id:r.id,ok:false,error:errorText(e),preparation_failed:e.code==='MEDIA_PREP_UNAVAILABLE'});
       }
     }
     await chrome.storage.local.set({panelError:errors.join(' · ').slice(0,500)});

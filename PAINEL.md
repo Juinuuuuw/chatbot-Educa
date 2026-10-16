@@ -9,7 +9,7 @@ Nesta branch, o painel funciona com a extensão e a API local. A conexão com o 
 3. Mantenha o WhatsApp Web aberto e conectado à sua conta. No popup da extensão, clique em **Conectar todas as conversas**. Não é necessário selecionar um contato: as novas mensagens individuais serão detectadas e cadastradas automaticamente. Grupos, comunidades, canais, status/listas de transmissão e a conversa da própria conta ficam excluídos.
 4. O painel abre autenticado. Peça a um contato para enviar uma nova mensagem de texto ou áudio. O chat aparecerá no painel, com a Lia atendendo. Para reabrir, use **Abrir painel da EdUCA** na extensão. O acesso dura oito horas; a chave da API não aparece na interface nem é salva no navegador do painel.
 
-A versão 0.6.1 da extensão descobre conversas individuais existentes e contatos novos. O registro no painel acontece quando há uma mensagem nova após a ativação. Mensagens anteriores, mesmo não lidas, não disparam respostas retroativas. O WhatsApp pode estar aberto em outra conversa; não é preciso clicar no contato recebido. O modo de seleção manual continua disponível dentro de **Teste individual e seleção manual** no popup.
+A versão 0.6.2 da extensão descobre conversas individuais existentes e contatos novos. O registro no painel acontece quando há uma mensagem nova após a ativação. Mensagens anteriores, mesmo não lidas, não disparam respostas retroativas. O WhatsApp pode estar aberto em outra conversa; não é preciso clicar no contato recebido. O modo de seleção manual continua disponível dentro de **Teste individual e seleção manual** no popup.
 
 Para ver somente o visual: `http://127.0.0.1:8766/panel/#demo=1`. Os contatos e as respostas dessa demonstração são fictícios; suas ações não enviam mensagens.
 
@@ -58,3 +58,5 @@ A descoberta usa a [listagem individual da WA-JS](https://wppconnect.io/wa-js/fu
 A Lia usa Kokoro/Dora local na CPU. As respostas principais têm ritmo moderado e pausas entre ideias, sem fundo. Os avisos pré-gravados usam teclado sintético e ambiente baixo, reduzido durante a fala; não aumentam a latência da síntese. O modelo desta máquina está no disco D. Chatterbox permanece como alternativa; os detalhes de instalação estão no README.
 
 Se a API estiver desligada, o popup informa como iniciá-la e preserva o erro até uma nova tentativa. O diagnóstico de disponibilidade não altera as filas nem ativa o atendimento. O endereço e o link de mapa usados nas respostas ficam em `data/location.json`, separados dos documentos históricos.
+
+A versão 0.6.2 inclui WA-JS 4.7.1, com a correção oficial de preparação de mídia (`prepRawMedia`). Depois de atualizar a extensão, recarregue também a aba do WhatsApp Web para remover a biblioteca antiga da sessão. Se essa falha específica impedir a preparação de um aviso de espera, o aviso é cancelado e a resposta principal continua. Falhas com resultado de envio incerto preservam o bloqueio contra repetição.
