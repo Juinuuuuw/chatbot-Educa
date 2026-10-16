@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 from rank_bm25 import BM25Okapi
 from contextlib import closing
 from contextvars import ContextVar
-from lia import MENU, MENU_QUERIES, MENU_TOPIC_GROUPS, TEAM, HANDOFF_OFFER, OUT_OF_SCOPE, OFFENSIVE, LOCATION_TEXT, LOCATION_SOURCE, blocked_request, invalid_generated_reply, greeting as lia_greeting, menu_choice, restricted, in_scope, topics_for, static_answer, fully_covered
+from lia import MENU, MENU_QUERIES, MENU_TOPIC_GROUPS, TEAM, HANDOFF_OFFER, OUT_OF_SCOPE, OFFENSIVE, LOCATION_TEXT, LOCATION_SOURCE, blocked_request, invalid_generated_reply, greeting as lia_greeting, menu_choice, expand_menu_request, restricted, in_scope, topics_for, static_answer, fully_covered
 
 ROOT=pathlib.Path(__file__).resolve().parent
 DATA=ROOT/'data'; DATA.mkdir(exist_ok=True)
@@ -68,10 +68,14 @@ def prepare_question(m):
         if part.audio_base64:
             if not text: raise ValueError('Não consegui entender um dos áudios da sequência. Repita esse áudio, por favor.')
             transcripts.append(text)
-        hello=lia_greeting(text)
+        choice=menu_choice(text)
+        hello=lia_greeting(text) if not choice else None
         if hello: salutation=hello
         elif text:
             choice=menu_choice(text)
+            if choice:
+                prefix=re.match(r'^\s*(bom dia|boa tarde|boa noite)\b',norm(text))
+                if prefix:salutation=prefix[1].capitalize()
             texts.append(MENU_QUERIES[choice-1] if choice else text)
     q='\n\n'.join(texts)
     if salutation: q=salutation+'!'+('\n\n'+q if q else '')
@@ -205,7 +209,8 @@ def _answer(q,history=None,is_audio=False):
     if violation:
         return {'text':OFFENSIVE if violation=='ofensa' else OUT_OF_SCOPE,'mode':violation,'sources':[],'handoff':False}
     salutation=lia_greeting(q)
-    if salutation or norm(q).strip(' !?.') in ['menu','inicio']:
+    choice=menu_choice(q)
+    if not choice and (salutation or norm(q).strip(' !?.') in ['menu','inicio']):
         text=(salutation or 'Oi')+'! '+('Sou a Lia, assistente virtual da EdUCA. Como posso ajudar você?' if is_audio else MENU)
         return {'text':text,'mode':'saudacao_audio' if is_audio else 'menu','sources':[],'handoff':False}
     choice=menu_choice(q)
@@ -220,6 +225,7 @@ def _answer(q,history=None,is_audio=False):
         q='Quero um atendente'
     elif confirmation in ['nao','nao obrigado','nao obrigada','nao quero'] and offered:
         return {'text':'Tudo bem! Posso continuar ajudando com informações da EdUCA. Qual é sua dúvida?','mode':'continuar','sources':[],'handoff':False}
+    q=expand_menu_request(q)
     q=resolve_followup(q,history)
     n=question_norm(q)
     if re.search(r'\b(atendente|humano|pessoa da equipe)\b',n):

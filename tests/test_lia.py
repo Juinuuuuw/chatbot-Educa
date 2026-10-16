@@ -50,6 +50,37 @@ class LiaTest(unittest.TestCase):
         self.assertEqual(TOPICS[-1], 'Atendente')
         self.assertTrue(server.answer(str(len(TOPICS)))['handoff'])
 
+    def test_greeting_and_natural_menu_selection_do_not_call_llm(self):
+        for q in ['Bom dia Lia, tudo bom? Quero a opção 1', 'Oi, quero a opção um',
+                  'Gostaria da opção 1', 'Quero a primeira opção', 'Escolho 1, por favor', 'Opção 1', 'Bom dia, 1']:
+            with self.subTest(q=q):
+                result=server.answer(q)
+                self.assertEqual(result['mode'],'faq')
+                self.assertIn('Na base do semestre',result['text'])
+                self.assertNotIn('5. Atendente',result['text'])
+        self.assertTrue(server.answer('Bom dia Lia, tudo bom? Quero a opção 1')['text'].startswith('Bom dia!'))
+        self.assertTrue(server.answer('Boa tarde, quero a opção cinco')['handoff'])
+
+    def test_menu_parser_does_not_mistake_age_or_ambiguous_choice(self):
+        from lia import menu_choice
+        for text in ['Tenho 21 anos', 'Tenho 1 filho', 'opção 10', 'opção 1 ou 2',
+                     'Não quero a opção 5', 'segunda', 'Tenho aula segunda', 'Quero a opção 1 e quais documentos preciso levar?']:
+            self.assertIsNone(menu_choice(text),text)
+
+    def test_menu_selection_keeps_additional_question(self):
+        result=server.answer('Quero a opção 1. E quais documentos preciso levar?')
+        self.assertIn('Na base do semestre',result['text'])
+        self.assertIn('CPF',result['text'])
+
+    def test_natural_menu_selection_in_audio_batch_preserves_greeting(self):
+        with temporary_db(), patch.object(server,'transcribe',return_value='Bom dia Lia, tudo bom? Quero a opção um'), patch.object(server,'speak',return_value='audio-local'):
+            result=server.message(server.Message(chat_id='natural-menu-audio',message_id='natural-menu-audio-1',parts=[
+                {'audio_base64':'audio'},{'text':'Quais documentos preciso levar?'}]))
+            self.assertTrue(result['text'].startswith('Bom dia!'))
+            self.assertIn('Na base do semestre',result['text'])
+            self.assertIn('CPF',result['text'])
+            self.assertEqual(result['audio_base64'],'audio-local')
+
     def test_full_questions(self):
         questions = [
             'Quais cursos e atividades estão sendo oferecidos atualmente pela EdUCA?',

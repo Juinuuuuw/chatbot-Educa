@@ -47,8 +47,33 @@ def greeting(text):
     return None
 
 def menu_choice(text):
-    match = re.fullmatch(r'\s*(?:op[cç][aã]o\s*)?([1-5])[.!?]?\s*', text, re.I)
-    return int(match[1]) if match else None
+    n = re.sub(r'[^a-z0-9\s]', ' ', normalize(text))
+    n = re.sub(r'\s+', ' ', n).strip()
+    if n in ['primeiro','primeira','segundo','segunda','terceiro','terceira','quarto','quarta','quinto','quinta']:
+        return None
+    number = r'(1|2|3|4|5|um|uma|dois|duas|tres|quatro|cinco|primeir[oa]|segund[oa]|terceir[oa]|quart[oa]|quint[oa])'
+    match = re.fullmatch(
+        r'(?:(?:oi+|ola|bom dia|boa tarde|boa noite)(?: lia)?(?: tudo (?:bem|bom))?\s+)?'
+        r'(?:(?:quero|gostaria d[ae]|escolho|seleciono|prefiro|vou de)(?: escolher| selecionar)?\s+)?'
+        r'(?:a |o )?(?:(?:opcao|numero|item|alternativa)\s+)?' + number +
+        r'(?: opcao)?(?: por favor| obrigado| obrigada)?', n)
+    if not match: return None
+    value=match[1]
+    if value.isdigit():return int(value)
+    return next(i for i, forms in enumerate((('um','uma','primeiro','primeira'),
+        ('dois','duas','segundo','segunda'),('tres','terceiro','terceira'),
+        ('quatro','quarto','quarta'),('cinco','quinto','quinta')),1) if value in forms)
+
+
+def expand_menu_request(text):
+    """Expande uma escolha explícita sem apagar outras perguntas do texto."""
+    pattern=r'\b(?:quero|escolho|seleciono|prefiro|gostaria d[ae])(?:\s+(?:escolher|selecionar))?\s+(?:a\s+)?op[cç][aã]o\s+([1-5]|um|uma|dois|duas|tr[eê]s|quatro|cinco)\b'
+    def replace(match):
+        if re.search(r'\bnao\s*$', normalize(text[max(0,match.start()-12):match.start()])):
+            return match[0]
+        choice=menu_choice('opção '+match[1])
+        return MENU_QUERIES[choice-1]
+    return re.sub(pattern, replace, text, flags=re.I)
 
 
 def blocked_request(text):

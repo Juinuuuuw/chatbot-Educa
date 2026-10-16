@@ -6,7 +6,7 @@ Protótipo de atendimento para a EdUCA/UERN Natal pelo WhatsApp Web. Combina reg
 
 ## Atendimento da Lia
 
-Lia é um nome curto, remete a “ler” e soa muito bem em voz sintetizada. Uma saudação simples por texto apresenta cinco opções: cursos e atividades; inscrição e documentos; dias, horários e local; gratuidade e participação; e Atendente, sempre por último. As quatro primeiras recebem respostas estáticas agrupadas; a última solicita o encaminhamento humano. Perguntas completas são respondidas diretamente, sem obrigar o usuário a passar pelo menu.
+Lia é um nome curto, remete a “ler” e soa muito bem em voz sintetizada. Uma saudação simples por texto apresenta cinco opções: cursos e atividades; inscrição e documentos; dias, horários e local; gratuidade e participação; e Atendente, sempre por último. As quatro primeiras recebem respostas estáticas agrupadas; a última solicita o encaminhamento humano. Escolhas podem vir em frases como “Bom dia Lia, tudo bom? Quero a opção 1”, em números por extenso ou como “quero a primeira opção”. A saudação é preservada e perguntas adicionais não são descartadas. Perguntas completas são respondidas diretamente, sem obrigar o usuário a passar pelo menu.
 
 Mensagens de áudio são transcritas e respondidas em áudio, sem apresentar o menu, inclusive quando contêm apenas uma saudação. Perguntas gerais reconhecidas usam as respostas conferidas; questões mais específicas podem consultar o RAG e a Phi-4 Mini. Perguntas combinadas preservam os assuntos identificados.
 
