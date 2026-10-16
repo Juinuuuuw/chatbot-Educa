@@ -83,3 +83,5 @@ Siga o `README.md` para criar o ambiente `.venv`, baixar os modelos e gerar uma 
 Fontes: https://portal.uern.br/blog/tag/educa/ e edital 019/2026 fornecido pelo usuário. Consulte os URLs de cada artigo em `data/documents.json`.
 
 Pedidos fora do escopo, como gerar código, e ofensas reconhecidas recebem uma recusa breve com oferta de atendente. Essa barreira também vale para áudio transcrito e mensagens agrupadas. A pessoa confirma o encaminhamento respondendo “sim” à oferta ou escolhendo a última opção do menu.
+
+A seleção de teatro reconhece idades em algarismos e por extenso nas transcrições. Idade e atividade podem ser informadas em mensagens distintas; a idade é recuperada das falas da pessoa, sem usar idades citadas pela assistente como dado pessoal. Para 22 anos e teatro sem turma especificada, a orientação é Teatro Adulto, a partir de 16 anos. A busca restringe as fontes à faixa correspondente, e não acrescenta prazos de inscrição quando a pergunta trata somente de participação por idade.

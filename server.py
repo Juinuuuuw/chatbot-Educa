@@ -7,6 +7,7 @@ from rank_bm25 import BM25Okapi
 from contextlib import closing
 from contextvars import ContextVar
 from lia import MENU, MENU_QUERIES, MENU_TOPIC_GROUPS, TEAM, HANDOFF_OFFER, OUT_OF_SCOPE, OFFENSIVE, LOCATION_TEXT, LOCATION_SOURCE, blocked_request, invalid_generated_reply, greeting as lia_greeting, menu_choice, expand_menu_request, restricted, in_scope, topics_for, static_answer, fully_covered
+from lia import ages_in_text
 
 ROOT=pathlib.Path(__file__).resolve().parent
 DATA=ROOT/'data'; DATA.mkdir(exist_ok=True)
@@ -86,7 +87,7 @@ ADMISSION_STATUS='Só um detalhe: as aulas deste semestre tinham início previst
 STALE='O período de matrícula previsto para julho de 2026 já passou. '+ADMISSION_STATUS
 
 def theater_age(q):
-    n=norm(q); ages=re.findall(r'\b(\d{1,3})\s*anos\b',n)
+    n=norm(q); ages=ages_in_text(q)
     if 'teatro' not in n or len(ages)!=1: return None
     age=int(ages[0])
     explicit=next((t for t in ['maturidade','infantil','juvenil','adulto'] if t in n),None)
@@ -96,7 +97,7 @@ def theater_age(q):
     if re.search(r'adulto\s+ii\b',n): candidates=[c for c in candidates if c['course'].endswith(' II')]
     course=candidates[0]; limits=[int(x) for x in re.findall(r'\d+',course['age'])]
     allowed=age>=limits[0] and (len(limits)==1 or age<=limits[1])
-    name='Teatro Adulto I e II' if target=='adulto' and not re.search(r'adulto\s+(?:i|ii)\b',n) else course['course']
+    name='Teatro Adulto' if target=='adulto' and not re.search(r'adulto\s+(?:i|ii)\b',n) else course['course']
     return (age,limits[0],name,allowed,course['age'])
 def rule(q):
     n=norm(q).strip(' !?.')
@@ -115,7 +116,7 @@ def rule(q):
     if eligible:
         if eligible[3]: text=f"Claro! Com {eligible[0]} anos, você atende ao critério de idade de {eligible[2]}, que é {eligible[4]}!"
         else: text=f"A turma de {eligible[2]} é para pessoas de {eligible[4]}. Com {eligible[0]} anos, você não atende à faixa de idade dessa turma."
-        if eligible[3] and re.search(r'posso|da certo|quero|vontade|fazer|inscri|matricul',n) and not re.search(r'idade minima|idade maxima|faixa etaria',n): text+='\n\n'+ADMISSION_STATUS
+        if eligible[3] and re.search(r'inscri|matricul|\bvagas?\b',n) and not re.search(r'idade minima|idade maxima|faixa etaria',n): text+='\n\n'+ADMISSION_STATUS
         add(text,'edital-teatro-idade')
     schedule=course_schedule(q)
     if schedule: add(schedule,'edital-turma-horario')
@@ -133,11 +134,11 @@ def needs_retrieval(q):
     parts=re.split(r'[?!.;]+|\be\s+(?=qual|quais|onde|como|tem|ha|posso|quando|voc)',q,flags=re.I)
     for part in parts:
         part=part.strip()
-        if not part or rule(part)[0]: continue
+        if not part or lia_greeting(part) or rule(part)[0]: continue
         pn=norm(part)
         if eligible:
             if pn in ['posso participar','eu posso participar','da certo','posso','e possivel']: continue
-            if re.search(r'\d+\s*anos|\bteatro\b',pn) and not re.search(r'\b(qual|quais|onde|quando|como|quanto|tem|ha|oferece|existe)\b',pn): continue
+            if (ages_in_text(part) or re.search(r'\bteatro\b',pn)) and not re.search(r'\b(qual|quais|onde|quando|como|quanto|tem|ha|oferece|existe)\b',pn): continue
         return True
     return False
 
@@ -147,8 +148,9 @@ def retrieve(q,k=4):
     scores=index.get_scores(qt)
     n=norm(q)
     course_terms=[x for x in ['maturidade','musculacao','ballet','mix','contemporanea','corporais','juvenil','infantil','adulto'] if x in n]
-    age=re.search(r'\b(\d{1,3})\s*anos\b',n)
-    if 'teatro' in n and age and int(age[1])>=50 and not any(x in n for x in ['adulto','infantil','juvenil','maturidade']): course_terms.append('maturidade')
+    eligible=theater_age(q)
+    if eligible and not any(x in n for x in ['adulto','infantil','juvenil','maturidade']):
+        course_terms.append('maturidade' if eligible[0]>=50 else 'adulto' if eligible[0]>=16 else 'juvenil' if eligible[0]>=11 else 'infantil')
     subjects=[x for x in ['teatro','danca','musculacao','ballet','praticas corporais'] if x in n]
     course_query=bool(course_terms or subjects)
     edital_query=bool(re.search(r'matricul|inscri|horario|idade|turma|gratuit|curso|document|vaga|musculacao|ballet|teatro|danca',n))
@@ -182,6 +184,29 @@ def course_schedule(q):
     if want_time and want_day: return f"As aulas de {c['course']} são na {c['days']}, das {c['time']}. 😊"
     if want_time: return f"O horário de {c['course']} é das {c['time']}."
     return f"As aulas de {c['course']} são na {c['days']}."
+
+def resolve_participation(q,history):
+    """Recupera idade/atividade das falas da pessoa, nunca da resposta do modelo."""
+    n=norm(q)
+    ages=ages_in_text(q)
+    if not ages and 'teatro' in n and re.search(r'quero|gostaria|vontade|particip|fazer|posso|da certo',n):
+        for previous in reversed(history[-4:]):
+            question=previous['question']; pn=norm(question)
+            if re.search(r'\b(tenho|minha idade|estou com)\b',pn):
+                found=ages_in_text(question)
+                if len(found)==1 and not re.search(r'minha filha|meu filho|minha mae|meu pai',pn):
+                    return q+'. Idade informada: '+str(found[0])+' anos.'
+                break
+    if len(ages)==1 and not re.search(r'teatro|musculacao|ballet|danca|corporais|informatica',n):
+        for previous in reversed(history[-4:]):
+            pn=norm(previous['question'])
+            if re.search(r'teatro|musculacao|ballet|danca|corporais|informatica',pn):
+                if 'teatro' in pn and not re.search(r'musculacao|ballet|danca|corporais|informatica',pn):
+                    explicit=next((v for v in ['maturidade','infantil','juvenil','adulto'] if v in pn),'')
+                    return q+'. Atividade solicitada: teatro '+explicit+'.'
+                break
+    return q
+
 
 def resolve_followup(q,history):
     n=question_norm(q)
@@ -226,6 +251,7 @@ def _answer(q,history=None,is_audio=False):
     elif confirmation in ['nao','nao obrigado','nao obrigada','nao quero'] and offered:
         return {'text':'Tudo bem! Posso continuar ajudando com informações da EdUCA. Qual é sua dúvida?','mode':'continuar','sources':[],'handoff':False}
     q=expand_menu_request(q)
+    q=resolve_participation(q,history)
     q=resolve_followup(q,history)
     n=question_norm(q)
     if re.search(r'\b(atendente|humano|pessoa da equipe)\b',n):
@@ -234,6 +260,8 @@ def _answer(q,history=None,is_audio=False):
         return {'text':TEAM,'mode':'equipe','sources':[],'handoff':False}
     if re.search(r'\b(seu nome|quem e voce|quem e (?:a )?lia|voce se chama|como se chama)\b',n):
         return {'text':'Sou a Lia, assistente virtual da EdUCA! Posso ajudar com informações sobre cursos e atividades.','mode':'identidade','sources':[],'handoff':False}
+    if len(ages_in_text(q))==1 and re.fullmatch(r'(?:eu )?(?:tenho|estou com) .+ anos[.!?\s]*',norm(q)):
+        return {'text':'Qual curso ou atividade você gostaria de fazer?','mode':'esclarecer_atividade','sources':[],'handoff':False}
     faq_topics=topics_for(q)
     eligible=theater_age(q)
     # Idade e turma específicas usam os registros conferidos, não uma resposta geral.
@@ -279,6 +307,7 @@ Se faltarem dados ou houver conflito, explique com gentileza que precisa confirm
 Responda a TODAS as perguntas da mensagem, inclusive quando a pessoa combinar preço, idade, curso, horário ou documentos. Não pare após responder a primeira.
 Se ela já informou o curso, não pergunte qual curso quer. Se parte da pergunta não tem resposta nas fontes, diga isso sem omitir as partes que você consegue responder.
 Ao avaliar idade, diga que ela atende ao critério de idade da turma; isso não garante matrícula ou vagas. Uma pessoa de 60 anos atende à idade mínima de 50 anos do Teatro na Maturidade.
+Uma pessoa de 22 anos que pede teatro sem especificar turma deve receber orientação sobre Teatro Adulto, a partir de 16 anos. Não comece rejeitando Teatro Infantil nem enumere Infantil, Juvenil ou Maturidade como alternativas para essa pessoa. Use a idade informada pela pessoa, inclusive por extenso ou em mensagem anterior, e não idades citadas em respostas passadas da assistente.
 O item 10.3 do edital prevê início das aulas em 3 de agosto de 2026. Isso é uma previsão histórica, não confirmação de que a turma iniciou. Não diga que esta foi a última turma nem invente próxima data de inscrição.
 Perguntas sobre adequação da idade não autorizam listar horários, gratuidade, endereço ou documentos. O histórico também não autoriza acrescentar esses assuntos.
 Se não houver fonte que confirme a existência de um curso pedido, diga que não encontrou confirmação de que ele seja oferecido. Não responda como se ele existisse e faltassem apenas horários.

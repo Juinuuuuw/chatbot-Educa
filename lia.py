@@ -37,6 +37,21 @@ def normalize(text):
     return ''.join(c for c in unicodedata.normalize('NFD', text.lower())
                    if unicodedata.category(c) != 'Mn')
 
+
+def ages_in_text(text):
+    """Whisper pode escrever a idade em algarismos ou por extenso."""
+    values={'zero':0,'um':1,'uma':1,'dois':2,'duas':2,'tres':3,'quatro':4,'cinco':5,
+            'seis':6,'sete':7,'oito':8,'nove':9,'dez':10,'onze':11,'doze':12,
+            'treze':13,'catorze':14,'quatorze':14,'quinze':15,'dezesseis':16,
+            'dezessete':17,'dezoito':18,'dezenove':19,'vinte':20,'trinta':30,
+            'quarenta':40,'cinquenta':50,'sessenta':60,'setenta':70,'oitenta':80,
+            'noventa':90,'cem':100,'cento':100}
+    units='|'.join(k for k,v in values.items() if v<20)
+    tens='|'.join(k for k,v in values.items() if 20<=v<100)
+    words=rf'(?:cem|cento e (?:{tens})(?: e (?:{units}))?|cento e (?:{units})|(?:{tens})(?: e (?:{units}))?|(?:{units}))'
+    matches=re.findall(rf'\b(\d{{1,3}}|{words})\s*anos\b',normalize(text))
+    return [int(m) if m.isdigit() else sum(values[w] for w in m.split() if w!='e') for m in matches]
+
 def greeting(text):
     n = normalize(text)
     n = re.sub(r'[^a-z\s]', ' ', n)

@@ -118,6 +118,51 @@ class LiaTest(unittest.TestCase):
         self.assertNotIn('50 anos', text)
         self.assertNotIn('vagas', text)
 
+    def test_adult_theater_age_in_digits_and_transcribed_words(self):
+        for question in ['Tenho 22 anos e quero fazer teatro.',
+                         'Tenho vinte e dois anos. Quero fazer teatro.',
+                         'Bom dia Lia, tudo bom? Tenho vinte e dois anos e quero fazer teatro.']:
+            with self.subTest(question=question):
+                result=server.answer(question,is_audio=True)
+                self.assertEqual(result['mode'],'regra')
+                self.assertIn('Teatro Adulto',result['text'])
+                self.assertIn('a partir de 16 anos',result['text'])
+                for other in ['Infantil','Juvenil','Maturidade','vagas','inscrições','horário']:
+                    self.assertNotIn(other,result['text'])
+
+    def test_person_age_and_theater_interest_across_messages(self):
+        first=server.answer('Tenho vinte e dois anos')
+        self.assertEqual(first['mode'],'esclarecer_atividade')
+        history=[{'question':'Tenho vinte e dois anos','answer':first['text']}]
+        result=server.answer('Quero fazer teatro',history,is_audio=True)
+        self.assertIn('Teatro Adulto',result['text'])
+        self.assertNotIn('Infantil',result['text'])
+        reverse=[{'question':'Quero fazer teatro','answer':'Qual é a sua idade?'}]
+        self.assertIn('Teatro Adulto',server.answer('Tenho vinte e dois anos',reverse)['text'])
+
+    def test_age_filters_retrieval_even_when_question_needs_llm(self):
+        hits=server.retrieve('Tenho vinte e dois anos, quero fazer teatro e preciso de experiência?')
+        self.assertTrue(hits)
+        self.assertTrue(all('Teatro Adulto' in h['title'] for h in hits))
+        history=[{'question':'Tenho 22 anos','answer':'O Teatro Infantil atende crianças de 6 a 10 anos.'}]
+        self.assertIn('Teatro Adulto',server.answer('Quero fazer teatro',history)['text'])
+
+    def test_explicit_child_course_and_latest_age_are_respected(self):
+        self.assertFalse(server.theater_age('Tenho 22 anos e quero Teatro Infantil')[3])
+        history=[{'question':'Tenho 60 anos','answer':'Certo.'}]
+        result=server.answer('Na verdade tenho 22 anos e quero teatro',history)
+        self.assertIn('Teatro Adulto',result['text'])
+        self.assertNotIn('Maturidade',result['text'])
+
+    def test_spoken_age_and_interest_batch_gets_one_adult_audio_answer(self):
+        with temporary_db(), patch.object(server,'transcribe',side_effect=['Tenho vinte e dois anos','Quero fazer teatro']), patch.object(server,'speak',return_value='audio-adulto') as speak:
+            result=server.message(server.Message(chat_id='theater-age-audio',message_id='theater-age-audio-1',parts=[
+                {'audio_base64':'age'},{'audio_base64':'theater'}]))
+            self.assertIn('Teatro Adulto',result['text'])
+            self.assertNotIn('Infantil',result['text'])
+            self.assertEqual(result['audio_base64'],'audio-adulto')
+            speak.assert_called_once()
+
     def test_course_list_does_not_select_maturity_theater(self):
         history=[{'question':'1','answer':server.answer('1')['text']}]
         text=server.answer('Quais os dias e horários das aulas?',history)['text']
